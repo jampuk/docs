@@ -1,0 +1,108 @@
+---
+title: DKIM rotation
+description: Best practices for generating 2048-bit DKIM keys and executing zero-downtime selector rotations.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+DomainKeys Identified Mail (DKIM) provides cryptographic tamper-proofing by signing headers and message bodies with an asymmetric private key, verified against a public key published in DNS.
+</Aside>
+
+## Key Standards & Security Requirements
+
+- **Key Length**: Minimum **2048-bit** RSA. (1024-bit keys are considered cryptographically deprecated by Google, Yahoo, and modern MTAs).
+- **Rotation Interval**: Recommended every **6 to 12 months** or immediately upon employee or vendor offboarding.
+- **Selector Isolation**: Each sending service (e.g. Google Workspace, SendGrid, transactional mailer) must use its own distinct selector name (`s1`, `s2`, `google`, `sg1`).
+
+---
+
+## Zero-Downtime Rotation Lifecycle
+
+To rotate DKIM keys without causing signature verification failures on in-flight emails, follow this 4-step selector migration lifecycle:
+
+<Steps>
+1. **Generate New Keypair & Selector**
+   Generate a new 2048-bit RSA key pair and assign a new selector (e.g., `s2026a`).
+
+2. **Publish Public Key in DNS**
+   Publish the new public key record at `s2026a._domainkey.example.com` while leaving the old selector (`s2025b._domainkey.example.com`) active.
+
+3. **Switch Active Signing in Sending Service**
+   Update your mail transfer agent (MTA) or transactional email service to sign outgoing messages with the new selector `s2026a`.
+
+4. **Retire Old Selector After Propagation Window**
+   Wait 7 to 14 days for all in-flight emails and retry queues to resolve before removing the previous DNS public key record.
+</Steps>
+
+---
+
+## Key Generation & DNS Record Format
+
+Generate a 2048-bit RSA key using OpenSSL:
+
+```sh
+# Generate private key
+openssl genrsa -out dkim_2026a_private.pem 2048
+
+# Extract public key in DER format and encode as base64
+openssl rsa -in dkim_2026a_private.pem -pubout -outform DER | base64 -w 0 > dkim_2026a_public.txt
+```
+
+### DNS TXT Record Specification
+
+Publish the public key at the selector subdomain:
+
+```text
+Name:   s2026a._domainkey.example.com.
+Type:   TXT
+TTL:    3600
+Value:  v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+```
+
+<Aside type="caution">
+DNS systems often break strings longer than 255 characters into separate quoted strings inside the same TXT record. Ensure your DNS provider properly handles string concatenation without adding accidental spaces.
+</Aside>
+
+
+## Verifying DKIM Records
+
+Test DNS publication using command-line DNS utilities:
+
+```sh
+# Query DKIM public key record
+dig +short TXT s2026a._domainkey.example.com
+
+# Verify using host command
+host -t txt s2026a._domainkey.example.com
+```
+
+
+## CNAME vs Direct TXT Delegation
+
+When integrating external sending platforms:
+
+<Tabs>
+<TabItem label="CNAME Delegation (Recommended for SaaS)">
+
+Delegate key management directly to the vendor so they can rotate keys transparently:
+
+```text
+s1._domainkey.example.com.  IN  CNAME  s1.domainkey.u12345.sendgrid.net.
+s2._domainkey.example.com.  IN  CNAME  s2.domainkey.u12345.sendgrid.net.
+```
+
+</TabItem>
+<TabItem label="Direct TXT (Self-Hosted / Custom MTAs)">
+
+Maintain private keys inside your own secure keystore or HashiCorp Vault, publishing the public key directly as a TXT record.
+
+</TabItem>
+</Tabs>
+
+## Further Readings
+
+- [DKIM Implementation Guide](https://www.rfc-editor.org/rfc/rfc6376)
+- [Key Management Best Practices](https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final)

@@ -1,0 +1,19 @@
+---
+title: Email Deliverability
+description: Guides and references for SPF flattening, DKIM rotation and DMARC enforcement to restore inbox placement.
+sidebar:
+  order: 1
+  label: Overview
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Guides and reference for authenticated, deliverable email: SPF, DKIM, DMARC and ongoing monitoring.
+
+<CardGrid stagger>
+  <LinkCard title="SPF flattening" href="/email-deliverability/spf-flattening/" description="Reduce SPF lookup failures with provider-aware flattening." />
+  <LinkCard title="DKIM rotation" href="/email-deliverability/dkim-rotation/" description="Rotate DKIM signing keys without deliverability regressions." />
+  <LinkCard title="DMARC enforcement" href="/email-deliverability/dmarc-enforcement/" description="Move from p=none to quarantine or reject safely." />
+  <LinkCard title="Email DNS records" href="/email-deliverability/email-dns-records/" description="Reference table of required and optional email DNS records." />
+  <LinkCard title="Deliverability monitoring" href="/email-deliverability/deliverability-monitoring/" description="Monitor placement, reputation and DMARC reports." />
+</CardGrid>

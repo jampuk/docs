@@ -1,0 +1,18 @@
+---
+title: Web Systems Delivery
+description: "Guides and references for productized web infrastructure delivery: build, GitOps deploy, then hand over source and runbooks."
+sidebar:
+  order: 1
+  label: Overview
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Productized delivery flow: build the system, deploy through GitOps on static hosting, then hand over source and runbooks.
+
+<CardGrid stagger>
+  <LinkCard title="GitOps deploy flow" href="/web-systems-delivery/gitops-deploy-flow/" description="Build, review and GitOps-deploy static web systems." />
+  <LinkCard title="Cloudflare Pages deployment" href="/web-systems-delivery/cloudflare-pages-deploy/" description="How this static docs site is hosted on Cloudflare Pages." />
+  <LinkCard title="Runbook authoring" href="/web-systems-delivery/runbook-authoring/" description="Write operations runbooks alongside delivered systems." />
+  <LinkCard title="Handover checklist" href="/web-systems-delivery/handover-checklist/" description="Hand over source, credentials and runbooks cleanly." />
+</CardGrid>

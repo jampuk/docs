@@ -1,0 +1,80 @@
+---
+title: SPA delivery
+description: Client-side routing, state boundaries, static-host fallbacks and performance budgets for single-page application delivery.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+A single-page application is the right tool for an authenticated product surface with frequent client state changes. It is usually the wrong tool for marketing pages, documentation or content that search engines must index without executing JavaScript.
+</Aside>
+
+## Choosing the delivery shape
+
+| Requirement | Static-first with islands | Single-page application |
+| --- | --- | --- |
+| Content indexing | Best default | Requires prerendering or metadata work |
+| Authenticated workflows | Isolated interactive islands | Natural fit |
+| Client state complexity | Keep it local | Centralised routing and state |
+| First-load JavaScript | Small | Larger, offset by route splitting |
+| Hosting | Static files and CDN | Static files, CDN and history fallback |
+
+The two shapes can coexist. Public routes stay static, while `/app/*` loads the application shell.
+
+## Routing and code splitting
+
+Split at the route boundary so the initial bundle contains only the shell and the landing route. React Router's lazy routes load feature code on navigation.
+
+```tsx
+import { lazy } from 'react';
+import { createBrowserRouter } from 'react-router-dom';
+
+const Dashboard = lazy(() => import('./routes/Dashboard'));
+const Billing = lazy(() => import('./routes/Billing'));
+
+export const router = createBrowserRouter([
+  { path: '/app', lazy: () => import('./routes/AppShell') },
+  { path: '/app/dashboard', element: <Dashboard /> },
+  { path: '/app/billing', element: <Billing /> },
+]);
+```
+
+Name chunks after features, not vendors alone. A single vendor chunk can grow without anyone noticing.
+
+## State and data boundaries
+
+Separate server state from UI state:
+
+- **Server cache** for records fetched from the API, with explicit invalidation.
+- **URL state** for filters, tabs and pagination that should survive reloads and sharing.
+- **Local UI state** for transient controls such as open panels and draft input.
+
+Keep credentials out of the bundle. Access tokens belong in secure, HTTP-only cookies or a backend-for-frontend session. The client should call your API, not a third-party API with a secret embedded in JavaScript.
+
+## Static-host fallback
+
+The host must return the application shell for client routes. On Cloudflare Pages, add a `_redirects` file:
+
+```text
+/app/*  /app/index.html  200
+```
+
+Keep a real 404 for unknown paths outside `/app/*`. A catch-all that returns `200` for every URL creates soft 404s and pollutes search results.
+
+## Performance and security budgets
+
+- Set a route-level JavaScript budget and fail CI when it is exceeded.
+- Preload the next likely route on intent, not on page load.
+- Render a stable skeleton to protect layout shift.
+- Add a Content Security Policy and restrict connect, script and image origins.
+- Audit dependencies in CI; the client bundle is public code.
+
+Measure with [Lighthouse CI](/modern-web-apps/performance-foundations/) and test on a throttled connection, not only on a fast office network.
+
+## Further Readings
+
+- [React Router Documentation](https://reactrouter.com/)
+- [web.dev: SPA Performance](https://web.dev/articles/rendering-on-the-web)
+- [Cloudflare Pages Redirects](https://developers.cloudflare.com/pages/configuration/redirects/)

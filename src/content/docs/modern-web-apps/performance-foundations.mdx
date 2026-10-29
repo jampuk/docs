@@ -1,0 +1,96 @@
+---
+title: Performance foundations
+description: Core Web Vitals budgets, hashed assets, font strategy and JavaScript discipline for static web applications.
+sidebar:
+  order: 7
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Performance is an acceptance criterion, not a cleanup task. Set budgets before the build starts, measure the production artifact, and fail the pipeline when a budget regresses.
+</Aside>
+
+## Core Web Vitals targets
+
+| Metric | Good | Needs work | Poor |
+| --- | --- | --- | --- |
+| LCP | 2.5 s or less | 2.5-4.0 s | Over 4.0 s |
+| INP | 200 ms or less | 200-500 ms | Over 500 ms |
+| CLS | 0.1 or less | 0.1-0.25 | Over 0.25 |
+
+Measure at the 75th percentile on mobile. A fast desktop score does not prove a fast experience for most visitors.
+
+## Asset and cache strategy
+
+Vite fingerprints imported assets, so they can be cached forever while HTML stays short-lived:
+
+```text
+# public/_headers (Cloudflare Pages)
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+```
+
+Never cache HTML with the same immutable policy as hashed assets. A stale shell can pin users to an old deployment.
+
+## JavaScript discipline
+
+- Keep public pages static and hydrate only interactive islands.
+- Load analytics and other third-party scripts away from the main thread where possible.
+- Split application routes so the first load does not include every feature.
+- Audit the bundle after each release, not only at launch.
+- Prefer CSS and native browser behaviour over JavaScript for menus, disclosures and simple animation.
+
+## Images and fonts
+
+Images usually dominate LCP. Serve responsive widths, modern formats and an explicit `sizes` value. Prioritise the hero image and lazy-load everything below the fold.
+
+```astro
+---
+import { Image } from 'astro:assets';
+import hero from '@assets/images/modern-web-apps-hero.png';
+---
+<Image
+  src={hero}
+  alt="Engineering team reviewing a deployment dashboard"
+  widths={[640, 960, 1280]}
+  sizes="(min-width: 1024px) 50vw, 100vw"
+  loading="eager"
+  fetchpriority="high"
+/>
+```
+
+For the full image pipeline, see [Sharp images](/modern-web-apps/sharp-images/). For third-party scripts, see [Partytown analytics](/modern-web-apps/partytown-analytics/).
+
+Fonts should be self-hosted or preconnected, subset where possible, and loaded with `font-display: swap`. Avoid layout shift by matching fallback metrics or reserving space.
+
+## Measurement
+
+```json
+{
+  "ci": {
+    "collect": {
+      "url": ["https://preview.example.com/", "https://preview.example.com/docs/"],
+      "numberOfRuns": 3
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.9 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }]
+      }
+    }
+  }
+}
+```
+
+Run Lighthouse CI against the preview artifact, then promote the same artifact to production. Testing a different build defeats the purpose.
+
+## Further Readings
+
+- [web.dev Core Web Vitals](https://web.dev/articles/vitals)
+- [Lighthouse CI](https://github.com/GoogleChrome/lighthouse-ci)
+- [Astro Performance](https://docs.astro.build/en/guides/images/)

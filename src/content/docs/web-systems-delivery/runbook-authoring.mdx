@@ -1,0 +1,82 @@
+---
+title: Runbook authoring
+description: Guidelines for authoring actionable operational runbooks, incident response procedures, and disaster recovery playbooks.
+sidebar:
+  order: 4
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+An operational runbook is a living engineering document designed to guide on-call engineers through routine maintenance, incident triage, and disaster recovery under pressure. Runbooks must prioritize copy-pasteable commands, clear criteria, and zero ambiguity.
+</Aside>
+
+## Anatomy of a Production Runbook
+
+Every service deliverable from Jampuk Intelligence includes dedicated runbooks structured into six standard sections:
+
+1. **Service Metadata & Ownership**: Service name, tier level (Tier 1/2/3), primary contacts, upstream/downstream dependencies.
+2. **SLOs & Error Budgets**: Availability targets, p99 latency thresholds, error rate triggers.
+3. **Architecture & Health Endpoints**: Quick ASCII/Mermaid diagram, liveness/readiness URLs, telemetry dashboard links.
+4. **Routine Operational Tasks**: Database backups, SSL certificate checks, cache invalidation, key rotation steps.
+5. **Incident Response Playbooks**: Triage steps for high-frequency alerts (e.g. 5xx spike, memory exhaustion, database lock contention).
+6. **Disaster Recovery (DR) Procedures**: Restoring from cold backups, failover to secondary regions, DNS cutover.
+
+---
+
+## Runbook Authoring Principles
+
+- **Explicit, Executable Commands**: Avoid vague descriptions like *"Restart the daemon"*. Provide the exact command:
+  ```sh
+  sudo systemctl restart web-service && sudo systemctl status web-service
+  ```
+- **Expected Outputs**: Include sample terminal output so the responder can immediately confirm success or failure.
+- **Blast Radius & Rollback Instructions**: For every mutating step, state the potential impact and the exact remediation if the step fails.
+- **No Tribal Knowledge**: Assume the engineer reading the runbook is on-call at 3:00 AM and has never written code for this specific microservice.
+
+---
+
+## Standard Triage Playbook Template
+
+When documenting alerts, use this standardized markdown template:
+
+````markdown
+### Alert: High5xxRate (HTTP 5xx > 2% for 5m)
+
+**Severity**: Critical (P1)  
+**Impact**: End-users experiencing application errors on checkout/login.
+
+#### 1. Initial Assessment
+- Open the Grafana HTTP Service Dashboard: `https://metrics.example.com/d/http-app`
+- Verify which endpoint is failing:
+  ```sh
+  kubectl logs -n production -l app.kubernetes.io/name=web-app --tail=100 | grep " 500 "
+  ```
+
+#### 2. Immediate Mitigation
+- If errors correlate with a recent GitOps deployment within the last 15 minutes, trigger an immediate rollback:
+  ```sh
+  git revert HEAD -m 1 && git push origin main
+  ```
+- If errors are caused by database connection saturation:
+  ```sh
+  kubectl scale deployment web-app -n production --replicas=3
+  ```
+
+#### 3. Post-Incident Escalation
+- Tag the release team in the `#incident-response` channel.
+- Create an incident timeline issue using the Post-Mortem template.
+````
+
+---
+
+## Review & Drill Schedule
+
+A runbook that is never tested is an unverified assumption:
+- **Bi-Annual DR Drills**: Practice recovering environments from automated snapshots into an isolated sandbox VPC.
+- **Incident Retrospectives**: After any production outage, update the runbook with missing triage steps within 48 hours.
+
+## Further Readings
+
+- [Runbook Patterns](https://docs.aws.amazon.com/wellarchitected/latest/operational-excellence-pillar/ops_ready_to_support_use_runbooks.html)
+- [SRE Google Handbook](https://sre.google/workbook/incident-response/)

@@ -1,0 +1,131 @@
+---
+title: Kubernetes & Helm
+description: CNCF-aligned Kubernetes cluster architecture, namespace isolation, resource governance, and versioned Helm chart packaging.
+sidebar:
+  order: 5
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Aside type="note">
+Kubernetes provides declarative, foundation-governed orchestration for microservices, workers, and web systems. Standardizing on CNCF primitives prevents cloud provider lock-in and enables seamless portability across AWS (EKS), GCP (GKE), Azure (AKS), or bare-metal clusters.
+</Aside>
+
+## Core Cluster Architecture Standards
+
+- **Namespace Segregation**: Segregate environments (`staging`, `prod`) and teams using strict Kubernetes Namespaces with dedicated `ResourceQuotas` and `LimitRanges`.
+- **Zero-Trust Network Policies**: By default, block cross-namespace and pod-to-pod east-west traffic unless explicitly permitted.
+- **Rootless & Restricted Pod Security Standards**: Enforce the `restricted` Pod Security Admission (PSA) standard cluster-wide.
+- **GitOps Reconciliation**: Treat Git as the single source of truth for all Kubernetes resources via Helm charts managed by ArgoCD or Flux.
+
+---
+
+## Standard Production Helm Chart Structure
+
+Organize applications into repeatable, versioned Helm charts:
+
+```text
+app-chart/
+├── Chart.yaml          # Chart metadata and semver version
+├── values.yaml         # Default environment values
+├── values-staging.yaml # Staging overrides
+├── values-prod.yaml    # Production overrides
+└── templates/
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── ingress.yaml
+    ├── hpa.yaml
+    └── networkpolicy.yaml
+```
+
+### Essential `values.yaml` Resource Bounds
+
+Always enforce CPU and Memory requests and limits to guarantee predictability for the Kubernetes scheduler:
+
+```yaml
+replicaCount: 3
+
+image:
+  repository: registry.example.com/app
+  pullPolicy: IfNotPresent
+  tag: "1.4.2"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+```
+
+
+## Defensive Ingress & Network Policies
+
+Isolate backend pods from unsolicited external connections using standard Kubernetes `NetworkPolicy`:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: web-app
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+```
+
+
+## Helm Release Verification Commands
+
+Deploy and audit releases via the Helm CLI:
+
+```sh
+# Lint chart templates for syntax and schema errors
+helm lint ./app-chart
+
+# Perform dry-run diff against target cluster
+helm upgrade --install web-app ./app-chart -f values-prod.yaml --dry-run
+
+# Execute release and track deployment rollout
+helm upgrade --install web-app ./app-chart -f values-prod.yaml --wait --timeout 5m
+```
+
+## Further Readings
+
+- [Kubernetes Security](https://kubernetes.io/docs/concepts/security/)
+- [Helm Chart Best Practices](https://helm.sh/docs/chart_best_practices/)

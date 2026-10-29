@@ -1,0 +1,133 @@
+---
+// Cookie consent banner (Google Consent Mode v2)
+// Only renders when a GA Measurement ID is configured via env var.
+// Same contract as blog & website ConsentBanner: the stored decision is applied
+// to GA via `gtag("consent", "update")` and the banner is a fixed bottom bar.
+import { CONSENT_STORAGE_KEY, CONSENT_EVENT } from "@lib/consent";
+
+const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
+---
+
+{
+    gaId && (
+        <Fragment>
+            <div
+                id="consent-banner"
+                class="consent-banner"
+                role="dialog"
+                aria-live="polite"
+                aria-label="Cookie consent"
+                hidden
+            >
+                <div class="consent-container">
+                    <p class="consent-message">
+                        We use privacy-friendly analytics to understand how this
+                        site performs. In the EEA and UK, analytics stay disabled
+                        until you accept. You can change your choice any time.
+                    </p>
+                    <div class="consent-actions">
+                        <button
+                            type="button"
+                            id="consent-reject"
+                            class="consent-btn consent-btn-reject"
+                        >
+                            Reject
+                        </button>
+                        <button
+                            type="button"
+                            id="consent-accept"
+                            class="consent-btn consent-btn-accept"
+                        >
+                            Accept
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <script is:inline define:vars={{ CONSENT_STORAGE_KEY, CONSENT_EVENT }}>
+                (function () {
+                    const banner = document.getElementById("consent-banner");
+                    if (!banner) return;
+                    // Escape Starlight's `.main-pane { isolation: isolate }` stacking
+                    // context: as long as the banner lives inside the footer, its
+                    // z-index only counts against siblings within .main-pane, and
+                    // Starlight's own fixed layers paint over it (sidebar
+                    // --sl-z-index-menu: 5, header --sl-z-index-navbar: 10). As a
+                    // direct child of <body> it stacks against those layers instead.
+                    document.body.appendChild(banner);
+                    const footer = document.querySelector("footer");
+
+                    function applyConsent(state) {
+                        if (window.gtag) {
+                            window.gtag("consent", "update", {
+                                ad_storage: state,
+                                ad_user_data: state,
+                                ad_personalization: state,
+                                analytics_storage: state,
+                            });
+                        }
+                        try {
+                            localStorage.setItem(CONSENT_STORAGE_KEY, state);
+                        } catch (e) {
+                            /* storage unavailable */
+                        }
+                        banner.hidden = true;
+                        if (footer) footer.style.paddingBottom = "";
+                    }
+
+                    let stored = null;
+                    try {
+                        stored = localStorage.getItem(CONSENT_STORAGE_KEY);
+                    } catch (e) {
+                        /* storage unavailable */
+                    }
+
+                    if (stored === "granted" || stored === "denied") {
+                        // Apply silently without showing the banner
+                        applyConsent(stored);
+                    } else {
+                        // Show the banner immediately on page load
+                        banner.hidden = false;
+                    }
+
+                    // Pad the footer when the visitor reaches the bottom so the
+                    // fixed consent bar never covers footer content
+                    function syncFooterPadding() {
+                        if (!footer || banner.hidden) return;
+                        const scrollBottom =
+                            window.innerHeight + window.scrollY;
+                        const docHeight = document.documentElement.scrollHeight;
+                        const atBottom =
+                            scrollBottom >= docHeight - 4 ||
+                            docHeight <= window.innerHeight + 4;
+                        footer.style.paddingBottom = atBottom
+                            ? banner.offsetHeight + "px"
+                            : "";
+                    }
+                    window.addEventListener("scroll", syncFooterPadding, {
+                        passive: true,
+                    });
+                    window.addEventListener("resize", syncFooterPadding);
+                    syncFooterPadding();
+
+                    const accept = document.getElementById("consent-accept");
+                    const reject = document.getElementById("consent-reject");
+                    if (accept)
+                        accept.addEventListener("click", () =>
+                            applyConsent("granted"),
+                        );
+                    if (reject)
+                        reject.addEventListener("click", () =>
+                            applyConsent("denied"),
+                        );
+
+                    // "Cookie settings" link in the footer re-opens the prompt
+                    window.addEventListener(CONSENT_EVENT, function () {
+                        banner.hidden = false;
+                        syncFooterPadding();
+                    });
+                })();
+            </script>
+        </Fragment>
+    )
+}

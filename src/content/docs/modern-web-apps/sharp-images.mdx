@@ -1,0 +1,96 @@
+---
+title: Sharp images
+description: Responsive image pipelines with Sharp, Astro getImage and enforced alt text for fast, accessible pages.
+sidebar:
+  order: 12
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Sharp is the image engine behind Astro's build-time optimisation. It converts source images to WebP or AVIF, resizes them for responsive layouts, and keeps the generated files content-hashed and cacheable.
+</Aside>
+
+## Install and configure
+
+Astro uses Sharp automatically when it is installed. No adapter is required for static builds.
+
+```sh
+npm install sharp
+```
+
+Keep original images in `src/assets/` so Vite can process them. Files in `public/` are copied unchanged and do not benefit from resizing or format conversion.
+
+## Responsive markup
+
+Use Astro's `<Image>` component and provide explicit widths and sizes:
+
+```astro
+---
+import { Image } from 'astro:assets';
+import hero from '@assets/images/modern-web-apps-hero.png';
+---
+<Image
+  src={hero}
+  alt="Engineer reviewing a static deployment dashboard in a dark studio"
+  widths={[640, 960, 1280, 1600]}
+  sizes="(min-width: 1024px) 50vw, 100vw"
+  loading="eager"
+  fetchpriority="high"
+/>
+```
+
+`widths` generates the candidate files. `sizes` tells the browser which candidate to choose. Without `sizes`, the browser assumes the image fills the viewport and often downloads a file that is too large.
+
+## Background images
+
+CSS backgrounds cannot use `<Image>`. Resolve them at build time with `getImage` and pass the generated URL into the style attribute:
+
+```ts
+import { getImage } from 'astro:assets';
+
+export async function optimizedBg(name, options = {}) {
+  const { width = 1600, format = 'webp' } = options;
+  const { src } = await getImage({
+    src: resolveImage(name),
+    width,
+    format,
+  });
+  return src;
+}
+```
+
+Keep the resolver strict. A missing image should fail the build, not render a broken hero.
+
+## Formats and LCP
+
+- Use AVIF where support is acceptable, with WebP as the practical default.
+- Keep PNG only for transparency that WebP cannot handle well.
+- Never upscale a source image beyond its native width.
+- Mark the hero image as eager and high priority; lazy-load everything below the fold.
+- Reserve width and height to prevent layout shift.
+
+## Alt text is part of the pipeline
+
+Every image needs descriptive alt text. Enforce it with a guard rather than relying on review:
+
+```ts
+export function requireAlt(alt, subject) {
+  if (typeof alt !== 'string' || !alt.trim()) {
+    throw new Error(`Image "${subject}" requires descriptive alt text`);
+  }
+  return alt.trim();
+}
+```
+
+Decorative images use `alt=""` and are hidden from assistive technology. Informative images describe the setting, action and relevant detail, not the filename.
+
+## Verify the output
+
+Build the site and inspect the generated HTML. Confirm that `srcset` contains multiple widths, the `sizes` attribute is present, and the LCP image is not lazy-loaded. Check that generated assets have content hashes so the immutable cache header is safe.
+
+## Further Readings
+
+- [Astro Image Optimization](https://docs.astro.build/en/guides/images/)
+- [Sharp Documentation](https://sharp.pixelplumbing.com/)
+- [web.dev Image Optimization](https://web.dev/learn/images)

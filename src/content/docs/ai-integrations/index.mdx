@@ -1,0 +1,19 @@
+---
+title: AI Integrations
+description: Guides and references for LLM orchestration, retrieval-augmented generation and agentic pipelines wired into existing enterprise systems.
+sidebar:
+  order: 1
+  label: Overview
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Guides and reference for adding AI capabilities to existing systems: retrieval, prompt/context design, model routing and evaluation.
+
+<CardGrid stagger>
+  <LinkCard title="RAG pipeline design" href="/ai-integrations/rag-pipeline-design/" description="Chunking, retrieval and grounding patterns for production RAG." />
+  <LinkCard title="Prompt and context engineering" href="/ai-integrations/prompt-context-engineering/" description="Prompt templates, context windows and structured output conventions." />
+  <LinkCard title="Model gateway" href="/ai-integrations/model-gateway/" description="Provider-agnostic gateway layer for routing, retries and rate limits." />
+  <LinkCard title="LLM evaluation" href="/ai-integrations/llm-evaluation/" description="Offline and online evaluation methods for LLM outputs." />
+  <LinkCard title="Vector store options" href="/ai-integrations/vector-store-options/" description="Reference comparison of vector stores and indexing options." />
+</CardGrid>

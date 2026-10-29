@@ -1,0 +1,83 @@
+---
+title: Delivery walkthrough
+description: How a fixed-scope Modern Web Apps engagement runs from technical scoping to source handover.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Every Modern Web Apps engagement is fixed-scope and fixed-price. Scope is agreed before the build starts, and the output includes source, configuration, pipelines and runbooks. There is no retainer and no managed-service dependency.
+</Aside>
+
+## Four phases
+
+<Steps>
+
+1. **Technical scoping**
+   Map routes, content models, interactive surfaces, integrations, hosting and DNS. Lock the acceptance criteria and the flat-rate price.
+
+2. **Engineering build**
+   Scaffold the repository inside your VPC or organization, wire the CI pipeline, implement the site or application, and add automated checks.
+
+3. **Deployment and verification**
+   Build an immutable artifact, scan it, deploy a preview, run accessibility, performance, link and security checks, then promote the verified artifact.
+
+4. **Handover and ownership**
+   Transfer the repository, environment variables, DNS records, analytics ownership and runbooks. Revoke delivery access and record formal acceptance.
+
+</Steps>
+
+## Scoping inputs
+
+| Input | What is agreed |
+| --- | --- |
+| Routes and templates | Static pages, dynamic routes, redirects and SPA entry points |
+| Content model | Collections, fields, validation and editorial workflow |
+| Interactive surfaces | Islands, forms, authenticated areas and third-party embeds |
+| Integrations | APIs, CMS, analytics, payments and consent requirements |
+| Hosting and DNS | Static host, domain, TLS, edge controls and cache policy |
+| Acceptance | Performance, accessibility, SEO, security and browser support |
+
+The scoping output is a short manifest that both sides can review. It becomes the acceptance checklist at handover.
+
+```yaml
+engagement: modern-web-apps
+build:
+  generator: astro
+  output: static
+routes:
+  - path: /
+    type: static
+  - path: /app/*
+    type: spa
+acceptance:
+  - lighthouse: performance >= 90
+  - cwv: { lcp: 2.5s, inp: 200ms, cls: 0.1 }
+  - links: no broken internal links
+handover:
+  - repository
+  - env-example
+  - dns-records
+  - runbook
+```
+
+## Engagement shapes
+
+- **CMS replatform and SEO recovery**: migrate legacy content to a static-first platform, preserve URL equity with a redirect map, and rebuild metadata and sitemap coverage.
+- **Rapid prototype validation**: ship an instrumented, clickable prototype quickly, then harden the parts that show real traction.
+- **Vibe-coded app rescue**: audit an AI-assisted build, remove unsafe dependencies, add tests and type checks, and take it to production with a clean handover.
+
+## Verification and handover
+
+Verification is evidence-based. The release artifact is the thing that was tested, not a later rebuild. Handover includes the source repository, pipeline definitions, environment contract, DNS records and an operational runbook.
+
+- [Handover checklist](/web-systems-delivery/handover-checklist/)
+- [GitOps deploy flow](/web-systems-delivery/gitops-deploy-flow/)
+- [Reproducible builds](/modern-web-apps/reproducible-build-spec/)
+
+## Further Readings
+
+- [Modern Web Apps solution page](https://www.jampuk.com/solutions/modern-web-apps/)
+- [Astro Build Guide](https://docs.astro.build/en/guides/deploy/)

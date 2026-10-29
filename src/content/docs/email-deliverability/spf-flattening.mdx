@@ -1,0 +1,110 @@
+---
+title: SPF flattening
+description: Techniques to resolve the SPF 10-DNS-lookup limit and maintain strict sender alignment.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Aside type="note">
+The Sender Policy Framework (SPF) RFC 7208 mandates a hard ceiling of **10 DNS lookups** when evaluating an authorization record. Exceeding this limit results in a `PermError`, causing recipient mail servers (like Google and Microsoft) to fail SPF evaluation.
+</Aside>
+
+## The 10-Lookup Constraint
+
+Every mechanism that triggers a DNS resolution counts towards the 10-lookup limit:
+- `include:` (resolves domain and counts nested lookups recursively)
+- `a` and `mx` (triggers DNS queries for records)
+- `ptr` (deprecated and expensive)
+- `redirect` (resolves target SPF record)
+
+Mechanisms like `ip4`, `ip6`, and `all` do **not** trigger additional lookups.
+
+### Common Failure Scenario
+
+Enterprise domains frequently stack multiple SaaS sending vendors over time:
+
+```text
+v=spf1 include:_spf.google.com include:sendgrid.net include:mailgun.org include:salesforce.com ~all
+```
+
+When each vendor includes multiple nested domains, the lookup count easily hits 12–16 lookups, producing silent delivery failures and quarantine drops.
+
+---
+
+## What is SPF Flattening?
+
+**SPF flattening** replaces dynamic `include:` mechanisms with direct, resolved `ip4:` and `ip6:` CIDR blocks:
+
+1. Recursively traverse all `include:` and `redirect` statements in your current record.
+2. Resolve all underlying IP ranges.
+3. Deduplicate and consolidate overlapping CIDRs.
+4. Publish the flattened IP list directly into DNS TXT records.
+
+```text
+# Before (Nested Lookups: 12)
+v=spf1 include:_spf.google.com include:sendgrid.net ~all
+
+# After Flattening (Lookups: 0-1)
+v=spf1 ip4:35.190.247.0/24 ip4:167.89.0.0/17 ip4:198.2.128.0/18 ~all
+```
+
+---
+
+## Split-Record Strategy for 255-Byte Limits
+
+DNS TXT records have a 255-byte limit per string (and UDP packets historically prefer under 512 bytes). When an organization has dozens of sending IPs, split the record across dedicated sub-records:
+
+<Tabs>
+<TabItem label="Root SPF Record">
+
+```text
+v=spf1 include:_spf1.example.com include:_spf2.example.com -all
+```
+
+</TabItem>
+<TabItem label="_spf1.example.com">
+
+```text
+v=spf1 ip4:35.190.247.0/24 ip4:35.191.0.0/16 ~all
+```
+
+</TabItem>
+<TabItem label="_spf2.example.com">
+
+```text
+v=spf1 ip4:167.89.0.0/17 ip4:198.2.128.0/18 ~all
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Automated Refresh & Drift Prevention
+
+Because SaaS providers can rotate their IP ranges, manual flattening risks stale records. Implement an automated workflow:
+
+1. **Daily Cron/Scheduled Job**: Resolve upstream SaaS provider SPF records.
+2. **Diff Detection**: Compare new CIDR sets against published DNS records.
+3. **Automated Pull Request / DNS API Update**: Apply DNS TXT updates via Cloudflare or Route 53 API when changes are detected.
+
+```sh
+# Verify SPF record lookups and syntax locally
+dig +short TXT example.com
+```
+
+---
+
+## Verification Checklist
+
+- [ ] Evaluated total DNS lookup count using a lookup checker (under 10).
+- [ ] Validated RFC 7208 syntax without duplicate mechanisms.
+- [ ] Enforced `~all` (softfail) during transition, moving to `-all` (fail) with DMARC alignment.
+- [ ] Automated daily verification against upstream SaaS vendor IP changes.
+
+## Further Readings
+
+- [SPF Flattening Guide](https://dmarcian.com/spf-flattening/)
+- [Email Sender Authentication](https://www.mxtoolbox.com/spf.aspx)

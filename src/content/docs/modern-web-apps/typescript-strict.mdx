@@ -1,0 +1,108 @@
+---
+title: TypeScript strict mode
+description: Strict TypeScript configuration, content collection schemas, typed props and runtime validation for Astro projects.
+sidebar:
+  order: 10
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Strict TypeScript catches broken props, missing frontmatter and unsafe data access before the site reaches production. The cost is a small amount of annotation; the benefit is a build that fails for the right reasons.
+</Aside>
+
+## Strict configuration
+
+Astro ships a strict base configuration. Extend it and include the generated Astro types:
+
+```json
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"]
+}
+```
+
+Add path aliases here so the editor and the bundler resolve the same modules:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@assets/*": ["src/assets/*"],
+      "@lib/*": ["src/lib/*"]
+    }
+  }
+}
+```
+
+Run `astro check` in CI to type-check `.astro`, `.ts` and `.tsx` files together. `tsc` alone does not understand Astro components.
+
+## Typed component props
+
+Declare the shape of every component's props and destructure from `Astro.props`:
+
+```astro
+---
+interface Props {
+  title: string;
+  description?: string;
+  href?: string;
+}
+
+const { title, description, href = '/' } = Astro.props;
+---
+<article>
+  <h2><a href={href}>{title}</a></h2>
+  {description && <p>{description}</p>}
+</article>
+```
+
+Avoid `any` and unchecked casts. If a value comes from an API or CMS, validate it at the boundary and pass a typed model inward.
+
+## Content collection schemas
+
+Astro content collections use Zod schemas. Required fields fail the build when missing, and inferred types flow into page code:
+
+```ts
+import { defineCollection } from 'astro:content';
+import { z } from 'zod';
+import { docsLoader } from '@astrojs/starlight/loaders';
+import { docsSchema } from '@astrojs/starlight/schema';
+
+export const collections = {
+  docs: defineCollection({
+    loader: docsLoader(),
+    schema: docsSchema(),
+  }),
+};
+```
+
+Extend a schema when a collection needs custom fields. Keep the schema close to the collection definition so editors and build validation share one source of truth.
+
+## Stricter flags worth enabling
+
+- `noUncheckedIndexedAccess`: array and record access returns `T | undefined`.
+- `exactOptionalPropertyTypes`: distinguishes a missing property from a property set to `undefined`.
+- `noImplicitOverride`: requires explicit `override` when replacing a base method.
+- `verbatimModuleSyntax`: makes type-only imports explicit.
+
+Enable one flag at a time and fix the resulting errors. Turning on every flag at once on a large codebase hides the useful signal in a wall of noise.
+
+## Validate at the edges
+
+TypeScript types disappear at runtime. Validate network responses, environment variables and user input with a schema before using them:
+
+```ts
+const payload = responseSchema.parse(await response.json());
+```
+
+Types describe what you expect. Runtime validation proves it. Keep both, especially around third-party APIs and form submissions.
+
+## Further Readings
+
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+- [Astro TypeScript Guide](https://docs.astro.build/en/guides/typescript/)
+- [Zod Documentation](https://zod.dev/)

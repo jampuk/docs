@@ -1,0 +1,48 @@
+---
+title: Modern Web Apps
+description: Fixed-scope static and single-page platforms with GitOps delivery, edge protection, performance and SEO foundations, and full source handover.
+sidebar:
+  order: 1
+  label: Overview
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Two delivery shapes, one reproducible pipeline: static-first sites built with Astro and Vite, and single-page application surfaces where client-side state is the requirement. Both ship through the same fixed-scope engineering, deployment and handover process.
+
+<LinkCard
+  title="Modern Web Apps solution page"
+  href="https://www.jampuk.com/solutions/modern-web-apps/"
+  description="Capabilities, inclusions and production use cases for the delivery service."
+/>
+
+## Delivery capabilities
+
+<CardGrid stagger>
+  <LinkCard title="Delivery walkthrough" href="/modern-web-apps/delivery-walkthrough/" description="Scoping, build, verification and handover in four fixed-scope phases." />
+  <LinkCard title="Static site generation" href="/modern-web-apps/static-site-generation/" description="Astro islands, prerendering and content collections for static-first sites." />
+  <LinkCard title="SPA delivery" href="/modern-web-apps/spa-delivery/" description="Client routing, state boundaries and static-host fallbacks for app surfaces." />
+  <LinkCard title="GitOps CI/CD" href="/modern-web-apps/gitops-cicd/" description="Reviewable pipelines, preview builds and reversible production releases." />
+  <LinkCard title="Edge DNS and DDoS" href="/modern-web-apps/edge-dns-ddos/" description="Proxied DNS, WAF, rate limiting and TLS at the network boundary." />
+  <LinkCard title="Performance foundations" href="/modern-web-apps/performance-foundations/" description="Core Web Vitals budgets, hashed assets and JavaScript discipline." />
+  <LinkCard title="Sitemap and SEO" href="/modern-web-apps/sitemap-seo/" description="Canonical metadata, Open Graph, JSON-LD, sitemap and robots." />
+</CardGrid>
+
+## Stack reference
+
+<CardGrid>
+  <LinkCard title="Tailwind CSS v4" href="/modern-web-apps/tailwind-v4/" description="CSS-first design tokens with the Vite plugin." />
+  <LinkCard title="TypeScript strict mode" href="/modern-web-apps/typescript-strict/" description="Strict configuration, content schemas and typed component props." />
+  <LinkCard title="Vite bundling" href="/modern-web-apps/vite-bundling/" description="Asset handling, aliases, environment variables and code splitting." />
+  <LinkCard title="Sharp images" href="/modern-web-apps/sharp-images/" description="Responsive image pipelines, formats and LCP handling." />
+  <LinkCard title="Partytown analytics" href="/modern-web-apps/partytown-analytics/" description="Move third-party scripts into a web worker with consent defaults." />
+  <LinkCard title="Search operations" href="/modern-web-apps/search-ops/" description="Pagefind indexing, verification and zero-result handling." />
+  <LinkCard title="Reproducible builds" href="/modern-web-apps/reproducible-build-spec/" description="Compare lockfile, lockfile-less, container and hash-manifest approaches." />
+</CardGrid>
+
+## Related guides
+
+- [GitOps deploy flow](/web-systems-delivery/gitops-deploy-flow/) for pull-based Kubernetes delivery.
+- [Cloudflare Pages deployment](/web-systems-delivery/cloudflare-pages-deploy/) for static hosting settings.
+- [Handover checklist](/web-systems-delivery/handover-checklist/) for the full ownership transfer list.
+- [Docker foundations](/devops-engineering/docker-foundations/) and [Kubernetes and Helm](/devops-engineering/kubernetes-helm/) for the runtime layer.

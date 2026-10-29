@@ -1,0 +1,89 @@
+---
+title: Edge DNS and DDoS
+description: Proxied DNS, WAF rules, rate limiting, TLS and failover controls that absorb attacks before they reach the origin.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Protection belongs at the network boundary, not on the origin. A static site behind a proxied DNS provider inherits caching, TLS, WAF and volumetric DDoS absorption before a single request reaches the host.
+</Aside>
+
+## DNS baseline
+
+| Record | Purpose |
+| --- | --- |
+| `A` / `AAAA` at apex | Proxied origin address |
+| `CNAME` for `www` | Canonical hostname or redirect |
+| `CAA` | Restrict which certificate authorities may issue |
+| `TXT` | Domain ownership and verification |
+| `MX` | Mail routing, separate from web traffic |
+
+Enable DNSSEC, set sane TTLs, and decide early whether the apex or `www` is canonical. Redirect the other hostname with a permanent redirect rather than serving duplicate content.
+
+## Edge controls
+
+- **WAF managed rules** for known exploit patterns and CMS vulnerabilities.
+- **Rate limiting** per IP, path and method, with a challenge rather than a hard block for ambiguous traffic.
+- **Bot controls** for credential stuffing, scraping and fake signups.
+- **Cache rules** so static HTML and hashed assets are served from the edge.
+- **Origin protection** so the origin accepts traffic only from the edge.
+- **Health checks and failover** for multi-origin deployments.
+
+Rate limits must be tuned against real traffic. A limit that is too low blocks legitimate users during a launch; a limit that is too high does nothing during an attack.
+
+## DDoS runbook
+
+<Steps>
+
+1. **Detect**
+   Confirm the spike from edge analytics, origin logs and error rates.
+
+2. **Absorb**
+   Enable the appropriate managed ruleset and raise caching for static routes.
+
+3. **Challenge**
+   Apply managed challenge or JavaScript challenge to suspicious ASNs and paths.
+
+4. **Protect the origin**
+   Confirm the origin firewall accepts only edge traffic, then rate limit the remaining paths.
+
+5. **Communicate**
+   Update the status page and support channel with impact and next action.
+
+6. **Review**
+   Record the attack vector, rule changes and any false positives, then tighten the runbook.
+
+</Steps>
+
+## TLS configuration
+
+- Use automatic certificates with renewal monitored.
+- Redirect HTTP to HTTPS at the edge.
+- Send HSTS only after every subdomain is HTTPS-ready.
+- Set a minimum TLS version and disable deprecated ciphers.
+- Keep a documented path for certificate issuance and rotation.
+
+## Verification
+
+```sh
+# Confirm the hostname resolves to the proxy
+dig +short www.example.com
+
+# Confirm the redirect and security headers
+curl -sI https://example.com | grep -Ei 'HTTP/|location|strict-transport|content-security'
+
+# Inspect the certificate chain and expiry
+openssl s_client -connect example.com:443 -servername example.com </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -dates
+```
+
+Record the expected values in the runbook so a future change can be compared against a known baseline. For origin hardening, see [Web server hardening](/devops-engineering/web-server-hardening/) and [CrowdSec setup](/devops-engineering/crowdsec-setup/).
+
+## Further Readings
+
+- [Cloudflare DDoS Protection](https://developers.cloudflare.com/ddos-protection/)
+- [OWASP Denial of Service](https://owasp.org/www-community/attacks/Denial_of_Service)
+- [Cloudflare Rate Limiting](https://developers.cloudflare.com/waf/rate-limiting-rules/)

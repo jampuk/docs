@@ -1,0 +1,83 @@
+---
+title: Server provisioning checklist
+description: Production checklist for provisioning, hardening, and configuring Linux servers from bare OS to production readiness.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+Every production server provisioned across private clouds or bare-metal providers should follow an immutable, auditable checklist before accepting traffic.
+</Aside>
+
+## Automated Provisioning Stages
+
+```mermaid
+flowchart LR
+    A[Base OS Install] --> B[Identity & SSH Lockout]
+    B --> C[Firewall & Kernel Sysctl]
+    C --> D[IPS / CrowdSec]
+    D --> E[Container Runtime]
+    E --> F[Backups & Telemetry Verification]
+```
+
+
+## 1. Identity, Access & SSH Hardening
+
+- [ ] **Disable Root SSH Login**: Set `PermitRootLogin no` in `/etc/ssh/sshd_config`.
+- [ ] **Enforce Key-Based Authentication**: Set `PasswordAuthentication no` and disable PAM passwords over SSH.
+- [ ] **Dedicated Sudo User**: Create an unprivileged user (e.g. `deploy`) belonging to the `sudo` / `wheel` group with public SSH key registered.
+- [ ] **ED25519 Keys**: Enforce modern Ed25519 SSH keys (`ssh-keygen -t ed25519`).
+- [ ] **Restart & Verify**: Confirm you can open a secondary SSH session before closing the existing active terminal.
+
+---
+
+## 2. Firewall & Network Boundary
+
+- [ ] **Default Deny Inbound**: Configure UFW or firewalld to drop all incoming packets by default.
+- [ ] **Allow Required Ports Only**:
+  ```sh
+  sudo ufw default deny incoming
+  sudo ufw default allow outgoing
+  sudo ufw allow 22/tcp comment 'SSH'
+  sudo ufw allow 80/tcp comment 'HTTP'
+  sudo ufw allow 443/tcp comment 'HTTPS'
+  sudo ufw enable
+  ```
+- [ ] **Kernel Parameter Tuning (`/etc/sysctl.d/99-security.conf`)**:
+  ```ini
+  # Disable IP forwarding (unless router/gateway)
+  net.ipv4.ip_forward = 0
+  # Ignore ICMP broadcast pings
+  net.ipv4.icmp_echo_ignore_broadcasts = 1
+  # Enable TCP SYN Cookies
+  net.ipv4.tcp_syncookies = 1
+  # Log martian packets
+  net.ipv4.conf.all.log_martians = 1
+  ```
+  Apply with `sudo sysctl --system`.
+
+---
+
+## 3. Package Updates & Intrusion Prevention
+
+- [ ] **System Updates**: Run full upgrade (`apt update && apt upgrade -y` or `dnf upgrade -y`).
+- [ ] **Automated Security Updates**: Enable `unattended-upgrades` on Debian/Ubuntu or `dnf-automatic` on RHEL.
+- [ ] **Deploy CrowdSec or Fail2ban**: Configure automated IP bans on repetitive authentication failures.
+- [ ] **NTP Synchronization**: Verify system clock is synchronized via `systemd-timesyncd` or `chrony`.
+
+---
+
+## 4. Storage, Swap & Automated Backups
+
+- [ ] **Swap Configuration**: Configure a 2–4 GB swapfile with `vm.swappiness=10` to handle memory pressure gracefully.
+- [ ] **Disk Partition Monitoring**: Set alerts when root volume disk utilization exceeds 80%.
+- [ ] **Automated Disaster Recovery Backups**:
+  - Encrypted snapshot schedule enabled at cloud provider level.
+  - Off-site database and configuration dump schedule tested and verified with periodic automated - [ ] **Off-site database and configuration dump schedule tested and verified with periodic automated restore drills.
+
+## Further Readings
+
+- [Linux Server Checklist](https://www.digitalocean.com/community/questions/how-to-create-a-new-linux-server)
+- [Infrastructure as Code Tools](https://developer.hashicorp.com/terraform/docs)

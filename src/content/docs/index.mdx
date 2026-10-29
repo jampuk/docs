@@ -1,0 +1,29 @@
+---
+title: Introduction
+description: Entry points to Jampuk Intelligence delivery solutions, engagement models, use cases and principal-written field notes.
+template: splash
+hero:
+  tagline: Delivery solutions, engagement models, production use cases and field notes from the studio. Guides and reference cover the stack behind these sites.
+  actions:
+    - text: Read the guides
+      link: /agentic-grid/
+      icon: right-arrow
+    - text: Read field notes
+      link: https://read.jampuk.com/notes/
+      icon: external
+      variant: minimal
+      attrs:
+        target: _blank
+        rel: noopener noreferrer
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <LinkCard title="Agentic Grid" href="/agentic-grid/" description="Fixed-scope, fixed-price AI engineering sprints deployed into your VPC with full source handover." />
+  <LinkCard title="Web Systems Delivery" href="/web-systems-delivery/" description="Productized web infrastructure delivery: build, GitOps deploy, then hand over source and runbooks." />
+  <LinkCard title="AI Integrations" href="/ai-integrations/" description="LLM orchestration, retrieval-augmented generation and agentic pipelines wired into existing enterprise systems." />
+  <LinkCard title="DevOps Engineering" href="/devops-engineering/" description="Web server hardening, CrowdSec, HTTPS, Docker, Kubernetes and Helm on portable foundations." />
+  <LinkCard title="Modern Web Apps" href="/modern-web-apps/" description="Fixed-scope static and single-page platforms merged into one reproducible delivery with full source handover." />
+  <LinkCard title="Email Deliverability" href="/email-deliverability/" description="SPF flattening, DKIM rotation and DMARC enforcement to restore inbox placement." />
+</CardGrid>

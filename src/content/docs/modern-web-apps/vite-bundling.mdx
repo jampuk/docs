@@ -1,0 +1,110 @@
+---
+title: Vite bundling
+description: Asset handling, path aliases, environment variables and code splitting in Astro's Vite pipeline.
+sidebar:
+  order: 11
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+Astro uses Vite for the development server and the production bundle. Most projects need very little Vite configuration, but assets, aliases and environment variables still follow Vite rules.
+</Aside>
+
+## Development and production
+
+```sh
+npm run dev     # Vite dev server with HMR
+npm run build   # production bundle written to dist/
+npm run preview # serve the built output
+```
+
+The dev server transforms modules on demand. The production build resolves the full graph, fingerprints assets and writes static files.
+
+## `public/` versus `src/assets/`
+
+| Location | Processing | Use for |
+| --- | --- | --- |
+| `public/` | Copied unchanged | `robots.txt`, `_headers`, favicons, fixed downloads |
+| `src/assets/` | Imported, hashed, optimisable | Images, fonts, SVGs used by components |
+
+Imported assets get content hashes in their filenames, so they can be cached indefinitely. Public files keep their exact paths, which is useful for files that must be served at a fixed URL.
+
+```astro
+---
+import logo from '@assets/logo.svg';
+---
+<img src={logo.src} alt="Jampuk Intelligence" width={logo.width} height={logo.height} />
+```
+
+## Path aliases
+
+Define aliases once in `tsconfig.json` so the editor and Vite agree:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@layouts/*": ["src/layouts/*"],
+      "@assets/*": ["src/assets/*"],
+      "@lib/*": ["src/lib/*"],
+      "@data/*": ["src/data/*"]
+    }
+  }
+}
+```
+
+Astro reads these aliases automatically. Avoid duplicating them in a separate Vite config unless a plugin needs them before Astro resolves the TypeScript configuration.
+
+## Environment variables
+
+Only variables prefixed with `PUBLIC_` are exposed to client code. They are inlined at build time, so a static build is environment-specific.
+
+```sh
+PUBLIC_SITE_URL=https://www.example.com
+PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXX
+```
+
+Never put secrets in a `PUBLIC_` variable. Anything inlined into the bundle is public.
+
+## Code splitting
+
+Vite splits shared dependencies automatically. Add manual chunks only when a large dependency is duplicated or a route bundle grows unexpectedly:
+
+```js
+// astro.config.mjs
+export default defineConfig({
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+          },
+        },
+      },
+    },
+  },
+});
+```
+
+Inspect the output before and after a change. A manual chunk can improve caching or make the first load worse if it pulls code into the critical path.
+
+## Build target and troubleshooting
+
+Astro sets a modern browser target by default. Lower it only when analytics show a real population of older browsers. Common issues:
+
+- A missing alias points at the wrong directory.
+- A `PUBLIC_` variable is undefined because it was set after the build.
+- A large dependency appears in every route because it is imported from a shared layout.
+- A `public/` asset is stale because the filename did not change.
+
+For asset optimisation, see [Sharp images](/modern-web-apps/sharp-images/). For framework-level rendering, see [Static site generation](/modern-web-apps/static-site-generation/).
+
+## Further Readings
+
+- [Vite Documentation](https://vite.dev/)
+- [Vite Configuration](https://vite.dev/config/)
+- [Vite Build Options](https://vite.dev/config/build-options/)

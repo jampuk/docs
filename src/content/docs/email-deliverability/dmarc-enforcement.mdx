@@ -1,0 +1,98 @@
+---
+title: DMARC enforcement
+description: Phased implementation guide for DMARC policy progression from p=none monitoring to p=reject enforcement.
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+Domain-based Message Authentication, Reporting, and Conformance (DMARC) links your domain identity to SPF and DKIM authentication. Without an enforced DMARC policy (`p=reject`), unauthorized actors can forge your sending domain.
+</Aside>
+
+## DMARC Core Mechanics
+
+For an email to pass DMARC, it must satisfy two conditions:
+1. **Authentication**: Either SPF or DKIM passes.
+2. **Identifier Alignment**: The domain in the visible `From:` header must match (or align with) the domain evaluated by SPF (`Return-Path`) or DKIM (`d=` parameter).
+
+### Alignment Modes
+
+- **Relaxed (`r`)** (Default): Subdomains match parent domains (e.g., `mail.example.com` aligns with `example.com`).
+- **Strict (`s`)**: Exact hostname match is required.
+
+---
+
+## Safe Phased Rollout Protocol
+
+Never jump directly to `p=reject` without monitoring. Legitimate transactional services, CRM integrations, or edge applications may be misconfigured. Follow this 3-phase rollout:
+
+<Steps>
+1. **Phase 1: Discovery & Monitoring (`p=none`)**
+   Deploy aggregate reporting to observe all sending streams without affecting deliverability.
+   
+   ```text
+   v=DMARC1; p=none; rua=mailto:dmarc-rua@example.com; sp=none; fo=1;
+   ```
+   *Duration: 2 to 4 weeks.* Analyze aggregate XML reports for unauthenticated legitimate services.
+
+2. **Phase 2: Gradual Quarantine (`p=quarantine`)**
+   Route suspicious emails to the spam/quarantine folder. Start with a percentage ramp-up:
+
+   ```text
+   v=DMARC1; p=quarantine; pct=25; rua=mailto:dmarc-rua@example.com; ruf=mailto:dmarc-ruf@example.com;
+   ```
+   *Ramp Schedule:* Increment `pct=` from 25% to 50%, 75%, and 100% over several weeks while confirming zero drop in legitimate message metrics.
+
+3. **Phase 3: Strict Enforcement (`p=reject`)**
+   Instruct recipient gateways to drop unauthenticated messages outright:
+
+   ```text
+   v=DMARC1; p=reject; pct=100; rua=mailto:dmarc-rua@example.com; ruf=mailto:dmarc-ruf@example.com; aspf=r; adkim=r;
+   ```
+</Steps>
+
+---
+
+## DMARC Record Syntax Breakdown
+
+A standard production DMARC record published at `_dmarc.example.com`:
+
+```text
+v=DMARC1; p=reject; sp=reject; pct=100; rua=mailto:dmarc-reports@example.com; ruf=mailto:dmarc-forensics@example.com; fo=1; aspf=r; adkim=r;
+```
+
+| Tag | Purpose | Recommended Value |
+| :--- | :--- | :--- |
+| `v` | Protocol version | `DMARC1` |
+| `p` | Policy for organizational domain | `none` &rarr; `quarantine` &rarr; `reject` |
+| `sp` | Subdomain policy | `reject` (protects all inactive subdomains) |
+| `pct` | Percentage of messages subject to policy | `100` |
+| `rua` | URI for aggregate feedback reports | `mailto:...` |
+| `ruf` | URI for forensic failure reports | `mailto:...` |
+| `fo` | Forensic reporting options | `1` (report if any mechanism fails) |
+| `aspf` | SPF alignment mode | `r` (relaxed) or `s` (strict) |
+| `adkim`| DKIM alignment mode | `r` (relaxed) or `s` (strict) |
+
+
+## External Domain Reporting (Verification)
+
+If sending aggregate reports (`rua`) to a destination outside the sending domain (e.g. sending reports for `example.com` to `monitoring-service.net`), the recipient domain must verify authorization:
+
+```text
+# Published at: example.com._report._dmarc.monitoring-service.net
+v=DMARC1;
+```
+
+
+## Verifying DMARC Record
+
+```sh
+dig +short TXT _dmarc.example.com
+```
+
+## Further Readings
+
+- [DMARC Policy Guide](https://www.rfc-editor.org/rfc/rfc7489)
+- [Email Security Best Practices](https://www.cisa.gov/resources-tools/resources/enhanced-email-and-web-security)

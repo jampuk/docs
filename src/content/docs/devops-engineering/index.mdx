@@ -1,0 +1,19 @@
+---
+title: DevOps Engineering
+description: Guides and references for web server hardening, CrowdSec, HTTPS, Docker, Kubernetes and Helm on portable foundations.
+sidebar:
+  order: 1
+  label: Overview
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Guides and reference for running hardened, portable web infrastructure: server hardening, CrowdSec, HTTPS, containers and Kubernetes.
+
+<CardGrid stagger>
+  <LinkCard title="CrowdSec setup" href="/devops-engineering/crowdsec-setup/" description="Install and tune CrowdSec on public-facing servers." />
+  <LinkCard title="Web server hardening" href="/devops-engineering/web-server-hardening/" description="Baseline Nginx and Caddy hardening with HTTPS everywhere." />
+  <LinkCard title="Docker foundations" href="/devops-engineering/docker-foundations/" description="Portable container foundations for repeatable deployments." />
+  <LinkCard title="Kubernetes and Helm" href="/devops-engineering/kubernetes-helm/" description="Kubernetes and Helm delivery patterns on portable foundations." />
+  <LinkCard title="Server provisioning checklist" href="/devops-engineering/server-provisioning-checklist/" description="Reference checklist for provisioning new servers." />
+</CardGrid>

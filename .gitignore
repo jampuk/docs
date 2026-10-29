@@ -1,0 +1,45 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Lockfiles (never committed; builds always use `npm install`)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+bun.lock
+
+# Build output
+dist/
+.astro/
+
+# Deployment archive
+deploy.zip
+deploy*.zip
+package.zip
+package*.zip
+
+# IDEs & editors 
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Docker
+# Local overrides for compose (never commit secrets)
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Misc 
+*.bak
+*.tmp

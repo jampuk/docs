@@ -1,0 +1,105 @@
+---
+title: Static site generation
+description: Astro islands, prerendering, content collections and the Vite asset pipeline behind static-first delivery.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Static-first is the default for content sites, documentation, marketing pages and catalogues. The browser receives prerendered HTML, the CDN caches it at the edge, and there is no application runtime to exploit or keep patched.
+</Aside>
+
+## What static output means
+
+Astro renders every route at build time when `output: 'static'` is set. The deploy artifact is a directory of HTML, CSS, JavaScript and assets. A static host serves those files directly.
+
+```js
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+
+export default defineConfig({
+  site: process.env.PUBLIC_SITE_URL,
+  output: 'static',
+});
+```
+
+Dynamic behaviour is added per component, not per page. A pricing table can stay static while a currency switcher hydrates in the browser.
+
+## Islands and client directives
+
+Use `.astro` components for markup. Add a client directive only when a component needs browser state:
+
+```astro
+---
+import Counter from '../components/Counter.jsx';
+---
+<Counter client:visible />
+```
+
+| Directive | Use when |
+| --- | --- |
+| `client:load` | The component must be interactive immediately |
+| `client:idle` | Interaction can wait for the main thread to be free |
+| `client:visible` | The component is below the fold |
+| `client:media` | Behaviour depends on a media query |
+| `client:only` | The component needs browser-only APIs at render time |
+
+Every hydrated island adds JavaScript. Keep the interactive surface small and leave navigation, content and metadata static.
+
+## Routing and content collections
+
+Files under `src/pages/` become routes. Content collections under `src/content/` provide typed frontmatter and build-time validation.
+
+```astro
+---
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+---
+<article>
+  <h1>{post.data.title}</h1>
+  <p>{post.data.description}</p>
+</article>
+```
+
+Schema validation fails the build when required fields are missing. That is preferable to discovering broken metadata after deployment.
+
+## When static is the wrong choice
+
+Choose a different rendering mode when the response depends on the request:
+
+- Authenticated dashboards with per-user data.
+- Personalised recommendations or pricing.
+- Real-time collaboration or live inventory.
+- Server-side redirects that depend on session state.
+
+For these surfaces, see [SPA delivery](/modern-web-apps/spa-delivery/) or an authenticated API behind the static shell. Keep public pages static and isolate the dynamic surface.
+
+## Asset pipeline
+
+Files in `public/` are copied unchanged. Files imported from `src/assets/` are processed by Vite, hashed and can be optimised by Astro. Prefer imports for images and fonts so cache invalidation is automatic.
+
+```astro
+---
+import logo from '@assets/logo.svg';
+---
+<img src={logo.src} alt="Jampuk Intelligence" width={logo.width} height={logo.height} />
+```
+
+See [Vite bundling](/modern-web-apps/vite-bundling/) for aliases, environment variables and code splitting.
+
+## Further Readings
+
+- [Astro Documentation](https://docs.astro.build/)
+- [Astro Islands](https://docs.astro.build/en/concepts/islands/)
+- [Astro Content Collections](https://docs.astro.build/en/guides/content-collections/)

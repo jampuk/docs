@@ -1,0 +1,122 @@
+---
+title: Reproducible builds
+description: Compare lockfile, lockfile-less, container-pinned and content-addressed approaches to reproducible static builds.
+sidebar:
+  order: 15
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+A reproducible build produces the same artifact from the same commit and the same declared inputs. Absolute bit-for-bit equality is the strongest form; matching file hashes across two consecutive builds is the practical test.
+</Aside>
+
+## Sources of drift
+
+- Floating dependency ranges and transitive updates.
+- Different Node, npm or OS versions.
+- Timestamps embedded in archives or metadata.
+- Absolute build paths in sourcemaps.
+- CRLF versus LF line endings.
+- Build caches that reuse stale output.
+
+There is no single fix. Choose the combination that matches the risk of the deliverable.
+
+## Approach matrix
+
+| Approach | Mechanism | Strength | Limit |
+| --- | --- | --- | --- |
+| Committed lockfile | `npm ci` installs the exact graph | Strongest JavaScript determinism | Lockfile churn and platform-specific optional dependencies |
+| Lockfile-less | Exact versions in `package.json`, `npm install` | No lockfile conflicts, simple review | Transitive dependencies can drift |
+| Frozen pnpm or Yarn lockfile | `pnpm install --frozen-lockfile` | Strict graph and content-addressed store | Requires team adoption |
+| Container digest pinning | `FROM node@sha256:...` | Reproduces the OS and toolchain | Image updates are manual |
+| Content hash manifest | SHA-256 of every output file | Verifies a build after the fact | Detects drift, does not prevent it |
+| `SOURCE_DATE_EPOCH` | Normalises timestamps | Stabilises archive metadata | Tool support varies |
+
+## Approach A: commit the lockfile
+
+This is the default for client deliverables. Commit `package-lock.json`, remove it from `.gitignore`, and install with `npm ci` everywhere.
+
+```sh
+npm ci
+npm run build
+```
+
+```dockerfile
+FROM node:24-alpine AS builder
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY . .
+RUN npm run build
+```
+
+`npm ci` refuses to run when the lockfile and `package.json` disagree. That failure is useful: it catches an unreviewed dependency change before deployment.
+
+## Approach B: no committed lockfile
+
+Some repositories deliberately exclude lockfiles. This documentation site is one of them: `npm install` is used locally and in the container. It is simpler to review, but it is not a strong reproducibility guarantee.
+
+```json
+{
+  "dependencies": {
+    "astro": "7.4.1",
+    "@astrojs/starlight": "0.42.6"
+  },
+  "overrides": {
+    "example-transitive-package": "1.2.3"
+  }
+}
+```
+
+```sh
+npm install --no-audit --no-fund
+npm run build
+```
+
+Pin direct dependencies exactly, use `overrides` for known transitive risks, and treat the build hash as evidence rather than a guarantee. If a client requires reproducibility, switch to Approach A.
+
+## Approach C: pin the container
+
+The base image digest fixes the OS packages and Node binary. Pin it by digest, not only by tag:
+
+```dockerfile
+FROM node:24-alpine@sha256:REPLACE_WITH_DIGEST
+```
+
+Set `SOURCE_DATE_EPOCH` when a tool embeds timestamps, and normalise line endings in `.gitattributes`:
+
+```text
+* text=auto eol=lf
+```
+
+## Approach D: verify with hashes
+
+Generate a manifest from the build output and compare it across two clean builds:
+
+```sh
+npm run build
+find dist -type f -print0 | sort -z | xargs -0 sha256sum > dist.sha256
+
+# rebuild from a clean checkout, then compare
+sha256sum -c dist.sha256
+```
+
+A clean pass proves the two builds match. A failure identifies the exact files that drifted, which is usually enough to find the source.
+
+## Choosing an approach
+
+| Deliverable | Recommended combination |
+| --- | --- |
+| Client production site | Lockfile, container digest, hash manifest, signed artifact |
+| Internal docs or marketing site | Lockfile-less with exact versions and a hash manifest |
+| Regulated or high-assurance system | Lockfile, digest-pinned container, hash manifest, provenance attestation |
+| Library or package | Frozen lockfile plus published integrity metadata |
+
+For the pipeline around the build, see [GitOps CI/CD](/modern-web-apps/gitops-cicd/). For the static artifact itself, see [Static site generation](/modern-web-apps/static-site-generation/).
+
+## Further Readings
+
+- [Reproducible Builds](https://reproducible-builds.org/)
+- [npm ci](https://docs.npmjs.com/cli/commands/npm-ci)
+- [SLSA Provenance](https://slsa.dev/provenance)

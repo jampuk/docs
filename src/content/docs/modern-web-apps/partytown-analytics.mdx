@@ -1,0 +1,95 @@
+---
+title: Partytown analytics
+description: Move third-party analytics into a web worker with Partytown and Consent Mode v2.
+sidebar:
+  order: 13
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+This docs site ships no analytics by default. Analytics is enabled only when `PUBLIC_GA_MEASUREMENT_ID` is set at build time. The pattern below keeps the third-party script off the main thread when it is enabled.
+</Aside>
+
+## Concept
+
+Partytown forwards calls like `dataLayer.push` into a web worker, keeping the main thread free.
+
+```js
+partytown({ config: { forward: ['dataLayer.push'] } })
+```
+
+Only `dataLayer.push` is forwarded. The main thread gets a small `gtag` shim that pushes
+into `window.dataLayer`, so forwarding `gtag` as well is unnecessary and would bounce the
+call back to the main thread and loop.
+
+## Enable analytics
+
+Set the measurement ID at build time. Leave it empty to ship no analytics and no consent
+banner.
+
+```sh
+PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXX npm run build
+```
+
+## Script usage
+
+```astro
+<!-- main thread: shim so page code can call gtag() -->
+<script is:inline>
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function () {
+        window.dataLayer.push(arguments);
+    };
+</script>
+
+<!-- worker: gtag.js + the full bootstrap -->
+<script type="text/partytown" src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"></script>
+<script type="text/partytown" is:inline define:vars={{ gaId }} id="ga-consent-defaults">
+    window.dataLayer = window.dataLayer || [];
+    function gtag() {
+        window.dataLayer.push(arguments);
+    }
+    gtag("consent", "default", {
+        analytics_storage: "granted",
+        wait_for_update: 500,
+    });
+    gtag("js", new Date());
+    gtag("config", gaId);
+</script>
+```
+
+The whole GA bootstrap must run inside the worker as a `type="text/partytown"`
+inline script, matching the official Partytown Google Tag Manager recipe. A plain
+main-thread bootstrap script breaks tracking: the browser runs it before the
+partytown snippet installs forwarding, so the worker's gtag.js never receives
+`gtag('config')` and never fires collection requests.
+
+With Consent Mode v2, set the consent defaults before `gtag("config")`. A stored
+decision can be applied in the same worker script (`window.localStorage` is proxied
+back to the main thread), so the very first hit already carries the right consent
+state instead of waiting for a forwarded update.
+
+## Verify the offload
+
+1. Open the production build with the measurement ID set.
+2. Confirm the network panel loads `gtag.js` from a worker, not the main thread.
+3. Check that the main thread exposes only the `gtag` shim and no full analytics bundle.
+4. Submit a consent decision and confirm the next request carries the updated state.
+5. Compare total blocking time with analytics enabled and disabled.
+
+If `gtag.js` appears as a main-thread request, the script tag is missing
+`type="text/partytown"` or the bootstrap ran before Partytown initialized.
+
+## When not to use Partytown
+
+Do not move a script into the worker when it must run before first paint, mutate the
+DOM synchronously, or coordinate with main-thread application state. Consent banners,
+A/B testing that changes layout, and authentication SDKs usually belong on the main
+thread. Partytown is for independent, deferrable third-party work.
+
+## Further Readings
+
+- [Partytown GitHub](https://github.com/partytown/partytown)
+- [Partytown Documentation](https://partytown.qwik.dev/)
+- [Google Consent Mode v2](https://developers.google.com/tag-platform/security/guides/consent)

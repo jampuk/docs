@@ -1,0 +1,49 @@
+---
+title: Deliverable checklist
+description: Complete verification and acceptance criteria checklist for Agentic Grid sprint deliverables.
+sidebar:
+  order: 4
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Every Agentic Grid sprint is bound by a fixed deliverable checklist established during Phase 01 Scoping. Handover is signed off only when all checklist criteria pass verification.
+</Aside>
+
+## Acceptance Criteria Checklist
+
+### 1. Architecture & Source Code
+- [ ] **Clean Architecture Boundaries**: Core application logic strictly decoupled from external model APIs, message brokers, and databases via Ports & Adapters.
+- [ ] **Repository Transfer**: Git repository with full commit history transferred to the client's GitHub or GitLab organization.
+- [ ] **Type Safety & Linting**: 100% strict TypeScript / Python typing with zero unresolved linter or compiler warnings.
+- [ ] **Unit & Integration Tests**: Core business logic and adapter contracts covered by automated unit and integration tests.
+
+---
+
+### 2. Autonomous Workers & Pipeline Wiring
+- [ ] **Deterministic Grounding**: RAG pipelines evaluate responses strictly against local verified records without hallucinated citations.
+- [ ] **Human-in-the-Loop (HITL) Gates**: High-risk mutations (financial transfers, record deletions, bulk updates) protected by cryptographic approval tokens.
+- [ ] **PII Scrubbing**: Contextual firewall tokenizes personally identifiable information before egress to external model providers.
+- [ ] **Semantic Caching & Rate Limiting**: Model gateway configured to cache frequent embeddings and throttle API spend.
+
+---
+
+### 3. Container & Infrastructure Manifests
+- [ ] **Hardened Dockerfiles**: Multi-stage, rootless Docker images with slim base images and zero high/critical vulnerabilities.
+- [ ] **Kubernetes Manifests / Helm Charts**: Declarative manifests with CPU/memory limits, liveness probes, and zero-trust network policies.
+- [ ] **GitOps Pipeline**: CI/CD pipeline configured for automated linting, container scanning, and declarative deployment.
+- [ ] **VPC Isolation**: Agent runtime isolated inside a secure subnet with strict egress controls.
+
+---
+
+### 4. Observability & Operational Runbooks
+- [ ] **Distributed Tracing & Metrics**: OpenTelemetry instrumentation reporting model latencies, token consumption, and error rates to Grafana or Datadog.
+- [ ] **Hallucination & Eval Suite**: Automated test suite configured in CI to detect drift or accuracy regressions.
+- [ ] **Operational Runbook**: Living markdown runbook covering deployment, routine maintenance, key rotation, and rollback playbooks.
+- [ ] **Recorded Architecture Walkthrough**: Comprehensive 60-minute video walkthrough explaining system design and operational workflows.
+
+## Further Readings
+
+- [Kubernetes Security Checklist](https://kubernetes.io/docs/concepts/security/)
+- [Infrastructure as Code Standards](https://developer.hashicorp.com/terraform/language/style)

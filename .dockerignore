@@ -1,0 +1,45 @@
+# ── Version control ───────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ── Lockfiles (never committed; builds always use `npm install`) ──────────────
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+bun.lock
+
+# ── Environment / Secrets (never bake into images) ────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+
+# ── IDE / editor files ────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Docker-related ────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+.astro/
+node_modules/
+
+# ── Documentation (not needed at runtime) ────────────────────────────────────
+README.md
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# Deployment archive
+deploy.zip
+deploy*.zip

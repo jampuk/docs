@@ -1,0 +1,92 @@
+---
+title: Sitemap and SEO
+description: Canonical metadata, Open Graph, JSON-LD, sitemap generation and robots rules for static sites.
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+Technical SEO is mostly a metadata contract. Every page needs one title, one description, one canonical URL, one `h1` and a consistent URL shape. Generate those values from frontmatter instead of hand-editing each page.
+</Aside>
+
+## Metadata contract
+
+| Signal | Source | Notes |
+| --- | --- | --- |
+| Title | Frontmatter `title` | Unique per page, under about 60 characters |
+| Description | Frontmatter `description` | Specific summary, not keyword stuffing |
+| Canonical | Page URL and configured site origin | Must match the sitemap and redirects |
+| Open Graph | Title, description, image | Used by social previews |
+| Twitter card | Title, description, image | `summary_large_image` for wide images |
+| JSON-LD | Site and page data | Organization, WebSite, Person, BreadcrumbList |
+| `h1` | Rendered once from the page title | Do not add a second `h1` in the body |
+
+Starlight emits the title, description and canonical tags by default. The `Head.astro` override adds the missing social and structured-data signals:
+
+```astro
+---
+const { data } = Astro.locals.starlightRoute.entry;
+const ogImage = absoluteUrl(SITE.ogImage, SITE_URL);
+const jsonLd = [buildOrganization(), buildWebsite(), buildPerson()];
+---
+<meta property="og:image" content={ogImage} />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json" set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': jsonLd })} />
+```
+
+Use absolute URLs for canonical and social images. Relative image paths fail when a crawler or social platform fetches the page from a different origin.
+
+## Sitemap generation
+
+The sitemap integration reads the built routes. Filter error pages and internal search routes, then normalise the trailing slash to match the canonical tags:
+
+```js
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
+
+export default defineConfig({
+  site: 'https://www.example.com',
+  integrations: [
+    sitemap({
+      filter: (page) =>
+        !['/403', '/404', '/500', '/502', '/503', '/search'].some((p) =>
+          page.includes(p)
+        ),
+      serialize: (item) => {
+        const url = new URL(item.url);
+        if (!url.pathname.endsWith('/')) url.pathname = `${url.pathname}/`;
+        return { ...item, url: url.toString() };
+      },
+    }),
+  ],
+});
+```
+
+The output is `sitemap-index.xml`. Reference it from `robots.txt` with an absolute URL.
+
+## Redirects and URL changes
+
+A renamed route should return a permanent redirect to the new URL. Keep one canonical URL per page and avoid chains. If a page is deleted with no replacement, return `410` rather than redirecting to the home page.
+
+For static hosts, redirects live in host configuration such as `_redirects` or `public/_headers`. Test them against the production hostname, not only the preview URL.
+
+## Validation checklist
+
+- Every page has a unique title and description.
+- Canonical URLs use the production origin and the correct trailing slash.
+- `og:image` and Twitter image URLs resolve without authentication.
+- JSON-LD parses without errors and matches visible content.
+- The sitemap contains only indexable pages.
+- `robots.txt` points to the sitemap and does not block assets.
+- Redirects return `301` or `308` and resolve in one hop.
+
+For on-site search metadata, see [Search operations](/modern-web-apps/search-ops/). For performance budgets that affect ranking, see [Performance foundations](/modern-web-apps/performance-foundations/).
+
+## Further Readings
+
+- [Astro Sitemap Integration](https://docs.astro.build/en/guides/integrations-guide/sitemap/)
+- [Google Search Essentials](https://developers.google.com/search/docs/essentials)
+- [Schema.org](https://schema.org/)

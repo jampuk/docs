@@ -1,0 +1,144 @@
+---
+title: Cloudflare Pages deployment
+description: How this static docs site is hosted on Cloudflare Pages.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Aside type="tip">Static output - no Cloudflare adapter required.</Aside>
+
+## Cloudflare Pages settings
+
+| Setting | Value | Description |
+| --- | --- | --- |
+| **Root directory** | `docs` | Relative to the repository root where Astro source files live |
+| **Build command** | `npm install && npm run build` | Installs dependencies and builds the site. Use `npm ci` once the lockfile is committed for deterministic builds. |
+| **Output directory** | `dist` | Astro's static output directory containing the generated HTML, CSS, and assets. |
+| **Node version** | `24` | Node.js version used for the build environment. Ensure compatibility with your Astro version. |
+| **Production domain** | `docs.jampuk.com` | The default production domain assigned by Cloudflare Pages. |
+
+## Environment variables
+
+The canonical URL for the site is set via the `PUBLIC_DOCS_SITE` environment variable. This variable is read at build time by `astro.config.mjs` and is also stored in `wrangler.toml` as a Cloudflare Pages function variable.
+
+<Tabs>
+<TabItem label="Production">
+
+```sh
+PUBLIC_DOCS_SITE=https://docs.jampuk.com npm run build
+```
+
+</TabItem>
+<TabItem label="Preview">
+
+```sh
+PUBLIC_DOCS_SITE=$CF_PAGES_URL npm run build
+```
+
+</TabItem>
+</Tabs>
+
+### `PUBLIC_DOCS_SITE` usage
+
+- **`astro.config.mjs`**: Reads `process.env.PUBLIC_DOCS_SITE` to set the `site` config, which propagates to sitemap generation, Open Graph tags, and canonical links.
+- **`wrangler.toml`**: Stores `PUBLIC_DOCS_SITE` as a Pages function variable for runtime use (e.g., redirects, API routes).
+- **`.env.example`**: Declares `PUBLIC_DOCS_SITE=https://docs.jampuk.com` as the production placeholder.
+
+> **Note**: The `PUBLIC_DOCS_SITE` value overrides the `site` option in `astro.config.mjs`. If not set, the default `https://docs.jampuk.com` is used.
+
+## Key configuration files
+
+- **`wrangler.toml`** - Cloudflare Pages metadata and variables
+  - `compatibility_date = "2026-09-01"` - Ensures Node.js compatibility features are available
+  - `[vars]` section contains `PUBLIC_DOCS_SITE = "https://docs.jampuk.com"` for production
+  - Local development: copy `.env.example` to `.env` and adjust as needed
+
+- **`public/_headers`** - Security headers served via Cloudflare Pages
+  - Sets `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`
+  - `Permissions-Policy` restricts camera, microphone, and geolocation
+  - `Strict-Transport-Security` enforces HTTPS with a 1-year max-age
+  - Cache control for `/_astro/*` and `/pagefind/*` assets
+
+- **`public/robots.txt`** (generated at build) - Search engine indexing rules
+  - References the sitemap location
+  - Can be updated if the custom domain changes
+  - Excludes admin and build paths from indexing
+
+- **`astro.config.mjs`** - Astro configuration
+  - Reads `PUBLIC_DOCS_SITE` env var to set the `site` config
+  - `output: 'static'` - Cloudflare Pages serves `dist/` directly, no adapter required
+  - Integrates Starlight, Partytown, sitemap, and external links plugin
+
+## Custom domain
+
+1. Add `docs.jampuk.com` as a custom domain on the Cloudflare Pages project dashboard.
+2. In the Pages project settings, set the `PUBLIC_DOCS_SITE` env var to `https://docs.jampuk.com`.
+3. Regenerate the build: `PUBLIC_DOCS_SITE=https://docs.jampuk.com npm run build`.
+4. Verify that all canonical URLs, sitemap, and Open Graph tags resolve to `https://docs.jampuk.com`.
+
+> **Important**: The `PUBLIC_DOCS_SITE` value must match the custom domain exactly for correct canonical URLs and sitemap generation.
+
+## Build workflow
+
+### Local development
+
+```sh
+# Copy env example if needed
+cp .env.example .env
+
+# Start local dev server (defaults to http://localhost:8088)
+npm run dev
+
+# Or with custom site URL
+PUBLIC_DOCS_SITE=https://docs.jampuk.com npm run dev
+```
+
+### Production build
+
+```sh
+# Production build with canonical URL
+PUBLIC_DOCS_SITE=https://docs.jampuk.com npm run build
+
+# Or using the shorthand for preview deployments
+PUBLIC_DOCS_SITE=$CF_PAGES_URL npm run build
+```
+
+> **Tip**: Commit the lockfile (`package-lock.json` or `pnpm-lock.yaml`) so that remote builds use `npm ci` for deterministic installs.
+
+### Preview deployments
+
+When pushing to a pull request branch, Cloudflare Pages automatically:
+1. Sets `CF_PAGES_URL` to the preview subdomain (e.g., `https://jampuk-docs-xyz.pages.dev`)
+2. Uses `PUBLIC_DOCS_SITE=$CF_PAGES_URL` for the build
+3. Generates a preview sitemap and robots.txt with the preview URL
+
+## Troubleshooting
+
+| Issue | Resolution |
+| --- | --- |
+| **Canonical URLs point to default domain** | Verify `PUBLIC_DOCS_SITE` is set correctly in the build command or Pages env vars. |
+| **Sitemap contains wrong URLs** | Check that `PUBLIC_DOCS_SITE` matches the custom domain and regenerate the build. |
+| **GA4 consent banner missing** | Ensure `PUBLIC_GA_MEASUREMENT_ID` is set in `.env` and `astro.config.mjs` forwards it to Partytown. |
+| **Build fails on `npm ci`** | Commit the lockfile or use `npm install` instead for remote builds. |
+| **Security headers not applied** | Verify `public/_headers` exists at the repository root and has correct format. |
+
+## Post-deployment verification
+
+After a successful deployment, verify:
+
+1. **Site accessibility**: Visit `https://docs.jampuk.com` and confirm the site loads correctly.
+2. **Canonical URL**: View page source and confirm `<link rel="canonical">` points to `https://docs.jampuk.com`.
+3. **Sitemap**: Visit `/sitemap.xml` and confirm all pages are included with correct URLs.
+4. **Security headers**: Use browser dev tools or `curl -I https://docs.jampuk.com` to verify headers from `public/_headers`.
+5. **robots.txt**: Visit `/robots.txt` and confirm sitemap reference and disallowed paths.
+6. **Custom domain DNS**: Ensure CNAME record points to the Cloudflare Pages hostname.
+
+## Further Readings
+
+- [Astro Documentation](https://docs.astro.build/)
+- [Cloudflare Pages Docs](https://developers.cloudflare.com/pages/)
+- [Astro Environment Variables](https://docs.astro.build/guides/environment-variables/)
+- [Cloudflare Wrangler TOML Reference](https://developers.cloudflare.com/workers/wrangler/configuration/)
+- [Starlight Docs](https://starlight.astro.build/)

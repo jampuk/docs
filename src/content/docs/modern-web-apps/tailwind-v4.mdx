@@ -1,0 +1,99 @@
+---
+title: Tailwind CSS v4
+description: CSS-first design tokens, the Vite plugin and responsive utility patterns for Tailwind CSS v4.
+sidebar:
+  order: 9
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+Tailwind v4 is CSS-first. Design tokens live in an `@theme` block, the Vite plugin replaces most of the old PostCSS setup, and a separate `tailwind.config.mjs` is no longer required for typical projects.
+</Aside>
+
+## Setup
+
+Add the Vite plugin to the Astro configuration:
+
+```js
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+import tailwindcss from '@tailwindcss/vite';
+
+export default defineConfig({
+  vite: {
+    plugins: [tailwindcss()],
+  },
+});
+```
+
+Import Tailwind and declare tokens in the global stylesheet:
+
+```css
+@import "tailwindcss";
+@source "../";
+
+@theme {
+  --color-primary: #0B132B;
+  --color-surface: #0F172A;
+  --color-accent: #0EA5E9;
+  --color-amber: #F59E0B;
+  --color-ink: #E2E8F0;
+  --font-heading: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --radius-md: 8px;
+}
+```
+
+`@source` tells Tailwind where to scan for class names when content lives outside the stylesheet's directory. Without it, dynamically composed classes can disappear from the build.
+
+## Tokens instead of arbitrary values
+
+Define canonical colours, fonts, radii and shadows in `@theme`, then use the generated utilities:
+
+```html
+<section class="bg-surface text-ink">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <h2 class="font-heading text-3xl font-bold">Modern Web Apps</h2>
+    <button class="rounded-md bg-accent px-5 py-2.5 font-semibold text-primary transition hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2">
+      Book a briefing
+    </button>
+  </div>
+</section>
+```
+
+Avoid arbitrary hex values in markup. A one-off `bg-[#123456]` bypasses the design system and makes theme changes expensive.
+
+## Responsive and state variants
+
+Design mobile-first and add breakpoints only when the layout needs them:
+
+```html
+<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+  <article class="rounded-lg border border-outline p-6 transition hover:-translate-y-0.5">
+    ...
+  </article>
+</div>
+```
+
+Use `focus-visible` for keyboard focus, not `focus`, so pointer clicks do not leave a persistent ring. Disable transitions for users who prefer reduced motion.
+
+## When to write custom CSS
+
+Utility classes cover layout, spacing, typography and state. Custom CSS is appropriate for:
+
+- Complex keyframe animations.
+- Third-party overrides such as Starlight `--sl-*` variables.
+- Styles that cannot be expressed without duplicating long utility chains.
+
+This documentation site uses CSS variables rather than Tailwind because it customises Starlight's component internals. Delivered sites use Tailwind v4 through the website's global stylesheet.
+
+## Build verification
+
+Run the production build and inspect the generated CSS. Confirm that only utilities in use are emitted, custom tokens resolve to CSS variables, and no unrelated source file has been scanned into the bundle.
+
+## Further Readings
+
+- [Tailwind CSS v4](https://tailwindcss.com/docs)
+- [Tailwind Theme Variables](https://tailwindcss.com/docs/theme)
+- [Tailwind Vite Plugin](https://tailwindcss.com/docs/installation/using-vite)

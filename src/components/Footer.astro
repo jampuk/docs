@@ -1,0 +1,62 @@
+---
+// Starlight Footer override.
+// Injects the share row above the default footer (edit link, last updated,
+// pagination). Shown on leaf guide pages only - the splash home page,
+// category overviews (`*/index`) and the 404 page are excluded.
+// Also renders the Cookie settings trigger and ConsentBanner.
+import Default from "@astrojs/starlight/components/Footer.astro";
+import ShareButtons from "./ShareButtons.astro";
+import ConsentBanner from "./ConsentBanner.astro";
+import { CONSENT_EVENT } from "@lib/consent";
+
+const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
+
+const { starlightRoute } = Astro.locals;
+const { data, id } = starlightRoute.entry;
+
+const isIndexPage = id === "index" || id.endsWith("/index");
+const isErrorPage = id === "404" || id.endsWith("/404");
+const showShare =
+  !data.hero && data.template !== "splash" && !isIndexPage && !isErrorPage;
+---
+
+{showShare && <ShareButtons title={data.title} />}
+
+<Default />
+
+{
+  gaId && (
+    <div class="docs-footer-legal">
+      <div class="docs-footer-legal-content">
+        <a href="https://www.jampuk.com/terms" class="docs-footer-legal-link">Terms &amp; Conditions</a>
+        <span class="docs-footer-legal-sep" aria-hidden="true">|</span>
+        <a href="https://www.jampuk.com/privacy" class="docs-footer-legal-link">Privacy Policy</a>
+        <span class="docs-footer-legal-sep" aria-hidden="true">|</span>
+        <button
+          type="button"
+          data-consent-trigger="true"
+          class="docs-footer-legal-link docs-footer-legal-button"
+          id="footer-cookie-settings"
+        >
+          Cookie settings
+        </button>
+      </div>
+    </div>
+  )
+}
+
+<ConsentBanner />
+
+{
+  gaId && (
+    <script is:inline define:vars={{ CONSENT_EVENT }}>
+      document
+        .querySelectorAll("[data-consent-trigger]")
+        .forEach(function (el) {
+          el.addEventListener("click", function () {
+            window.dispatchEvent(new CustomEvent(CONSENT_EVENT));
+          });
+        });
+    </script>
+  )
+}

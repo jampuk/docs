@@ -1,0 +1,75 @@
+---
+title: Search operations
+description: Pagefind indexing, verification, exclusions and zero-result handling for static documentation sites.
+sidebar:
+  order: 14
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Pagefind builds a static search index from the rendered HTML. There is no search service, API key or runtime database, so search works on Cloudflare Pages and other static hosts with no additional infrastructure.
+</Aside>
+
+## How the index is built
+
+Astro Starlight runs Pagefind after `astro build`. The index lands in `dist/pagefind/` and is served as static files. The search modal downloads only the fragments it needs for a query.
+
+<Steps>
+
+1. Run the production build.
+2. Confirm `dist/pagefind/` exists and contains index fragments.
+3. Preview the build and search for a term that appears on a known page.
+4. Check that the result links to the correct canonical URL.
+
+</Steps>
+
+```sh
+npm run build
+ls dist/pagefind
+npm run preview
+```
+
+Do not test search against the dev server. The index only exists after a production build.
+
+## Indexing controls
+
+Pagefind indexes visible page content by default. Use attributes to exclude interface chrome and duplicated content:
+
+```html
+<nav data-pagefind-ignore>...</nav>
+<aside data-pagefind-ignore>Related links</aside>
+```
+
+For finer control, wrap the main content in `data-pagefind-body` on templates that include heavy navigation or sidebars. Exclude error pages, internal search pages and any route that should not appear in results.
+
+Starlight already marks share controls and other chrome as ignored. Add attributes only where the default output includes noise.
+
+## Metadata and ranking
+
+Pagefind uses the page title, headings and body text. Clear `h2` and `h3` structure improves recall. Frontmatter descriptions are useful for result summaries when the theme renders them into the page, but they are not a substitute for content.
+
+Avoid keyword lists and duplicated text. They dilute relevance and make results harder to scan.
+
+## Zero-result handling
+
+A search box that silently returns nothing feels broken. Provide a short empty state with:
+
+- The query that was searched.
+- Suggested broader terms or category links.
+- A contact path for missing content.
+- No automatic redirect to an unrelated page.
+
+Review queries that return zero results. They usually reveal either missing content or vocabulary that does not match the docs.
+
+## Switching providers
+
+Pagefind is the default because it needs no external service. Algolia DocSearch or a hosted search product can be added later, but it introduces credentials, indexing jobs and a third-party dependency. Disable Pagefind explicitly if another provider takes over.
+
+For sitemap and metadata rules, see [Sitemap and SEO](/modern-web-apps/sitemap-seo/).
+
+## Further Readings
+
+- [Pagefind Documentation](https://pagefind.app/)
+- [Starlight Site Search](https://starlight.astro.build/guides/site-search/)
+- [Pagefind Indexing](https://pagefind.app/docs/indexing/)

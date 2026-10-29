@@ -1,0 +1,151 @@
+---
+/**
+ * Starlight `Head` component override.
+ *
+ * Renders Starlight's default <head> first (title, canonical, base OG tags,
+ * favicons, etc.), then appends the missing SEO signals that Starlight does
+ * not emit out of the box:
+ *   - og:image and all image variant tags
+ *   - og:site_name
+ *   - Twitter / X card tags
+ *   - schema.org JSON-LD @graph (Organization, WebSite, Person, BreadcrumbList)
+ *
+ * Access to the current page is via `Astro.locals.starlightRoute` (Starlight 0.42).
+ */
+import Default from '@astrojs/starlight/components/Head.astro';
+import { SITE } from '../data/site';
+import { CONSENT_STORAGE_KEY } from '../lib/consent';
+import {
+  SITE_URL,
+  OG_IMAGE_WIDTH,
+  OG_IMAGE_HEIGHT,
+  absoluteUrl,
+  buildOrganization,
+  buildWebsite,
+  buildPerson,
+  buildBreadcrumb,
+} from '../lib/seo';
+
+const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
+
+const { starlightRoute } = Astro.locals;
+const { data } = starlightRoute.entry;
+
+const pageTitle = data.title;
+const description: string = data.description ?? SITE.description;
+const pathname = Astro.url.pathname;
+
+const ogImage = absoluteUrl(SITE.ogImage, SITE_URL);
+
+// Build the JSON-LD @graph — static nodes + per-page breadcrumb
+const jsonLd: Record<string, unknown>[] = [
+  buildOrganization(),
+  buildWebsite(),
+  buildPerson(),
+];
+
+const breadcrumb = buildBreadcrumb(pathname, pageTitle);
+if (breadcrumb) jsonLd.push(breadcrumb);
+---
+
+{/* Starlight's own head: title, canonical, base og:title/description/url/type, favicons */}
+<Default {...Astro.props} />
+
+{/* og:image — Starlight does not emit these */}
+<meta property="og:site_name" content={SITE.docsName} />
+<meta property="og:image" content={ogImage} />
+<meta property="og:image:secure_url" content={ogImage} />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content={String(OG_IMAGE_WIDTH)} />
+<meta property="og:image:height" content={String(OG_IMAGE_HEIGHT)} />
+<meta property="og:image:alt" content={pageTitle} />
+
+{/* Twitter / X Cards */}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={pageTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+<meta name="twitter:image:alt" content={pageTitle} />
+
+{/* Structured Data */}
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': jsonLd })}
+/>
+
+{gaId && (
+  <Fragment>
+    {/* Main-thread gtag shim. `window.dataLayer.push` is patched by
+        Partytown to forward every command into the worker, so the
+        consent banner can update consent without touching gtag.js
+        directly. */}
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      window.gtag =
+        window.gtag ||
+        function () {
+          window.dataLayer.push(arguments);
+        };
+    </script>
+
+    {/* gtag.js is fetched and executed inside the Partytown web worker */}
+    <script
+      type="text/partytown"
+      is:inline
+      src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+    ></script>
+
+    {/* The bootstrap MUST also run inside the worker (official Partytown
+        recipe) so consent defaults precede config against the worker's
+        own dataLayer. A previously stored decision is read from
+        localStorage (proxied back to the main thread) and applied before
+        the config call, so the very first hit carries the right state. */}
+    <script
+      type="text/partytown"
+      is:inline
+      define:vars={{ gaId, CONSENT_STORAGE_KEY }}
+      id="ga-consent-defaults"
+    >
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        window.dataLayer.push(arguments);
+      }
+      // Global default: granted
+      gtag("consent", "default", {
+        ad_storage: "granted",
+        ad_user_data: "granted",
+        ad_personalization: "granted",
+        analytics_storage: "granted",
+        functionality_storage: "granted",
+        security_storage: "granted",
+        wait_for_update: 500,
+      });
+      // Restricted default for EEA / UK until explicit consent
+      gtag("consent", "default", {
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+        analytics_storage: "denied",
+        wait_for_update: 500,
+        region: ["EEA", "UK"],
+      });
+      // Apply a stored decision (if any) before config
+      var stored = null;
+      try {
+        stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
+      } catch (e) {
+        /* storage unavailable */
+      }
+      if (stored === "granted" || stored === "denied") {
+        gtag("consent", "update", {
+          ad_storage: stored,
+          ad_user_data: stored,
+          ad_personalization: stored,
+          analytics_storage: stored,
+        });
+      }
+      gtag("js", new Date());
+      gtag("config", gaId);
+    </script>
+  </Fragment>
+)}

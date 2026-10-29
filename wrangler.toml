@@ -1,0 +1,15 @@
+# Cloudflare Pages - jampuk docs
+# Copy .env.example to .env for local dev if needed.
+compatibility_date = "2026-09-01"
+
+[vars]
+# Canonical docs URL. Also read at build time via PUBLIC_DOCS_SITE.
+# PUBLIC_DOCS_SITE is used in astro.config.mjs; wrangler vars are runtime.
+PUBLIC_DOCS_SITE = "https://docs.jampuk.com"
+
+# Cloudflare Pages build settings (dashboard):
+# - Build command: npm install && npm run build
+#   (lockfiles are never committed)
+# - Build output directory: dist
+# - Root directory: docs
+# - Node version: 24

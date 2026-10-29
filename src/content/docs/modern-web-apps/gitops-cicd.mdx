@@ -1,0 +1,98 @@
+---
+title: GitOps CI/CD
+description: Reviewable build pipelines, preview deployments, immutable artifacts and reversible releases for static web applications.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="note">
+GitOps means the repository is the source of truth for the application and its delivery configuration. Production changes happen through reviewed commits and automated promotion, not through manual uploads from a laptop.
+</Aside>
+
+## Pipeline stages
+
+<Steps>
+
+1. **Validate**
+   Install from the lockfile when one exists, then run formatting, linting, type checks and unit tests.
+
+2. **Build**
+   Produce the static artifact once. The same artifact moves through preview and production; do not rebuild per environment.
+
+3. **Scan**
+   Run dependency, secret and container scans. Fail on high and critical findings.
+
+4. **Preview**
+   Deploy the artifact to a preview URL, then run link, accessibility, performance and smoke checks against it.
+
+5. **Promote**
+   Promote the verified artifact by immutable ID. Record the commit, artifact hash and approver.
+
+6. **Verify and roll back**
+   Run a post-deploy smoke test. Roll back by promoting the previous artifact, not by editing the host.
+
+</Steps>
+
+## Build once, promote everywhere
+
+| Environment | Trigger | Artifact | Access |
+| --- | --- | --- | --- |
+| Pull request | Every commit | Preview build | Reviewers and stakeholders |
+| Staging | Merge to `main` | Same build as preview | Internal team |
+| Production | Manual approval | Same artifact ID | Public |
+
+Environment-specific values are resolved at deploy time where possible. If a value must be inlined at build time, build separate artifacts for those environments and treat each one immutably.
+
+## Example workflow
+
+```yaml
+name: release
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx astro check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+```
+
+`npm ci` requires a committed lockfile. Projects that deliberately do not commit one must use the lockfile-free approach described in [Reproducible builds](/modern-web-apps/reproducible-build-spec/).
+
+## Approval gates
+
+- Type check, lint and unit tests must pass.
+- No high or critical vulnerability findings.
+- Preview checks pass the agreed performance and accessibility thresholds.
+- At least one reviewer approves the production promotion.
+- The artifact hash matches the one tested in preview.
+
+## Rollback
+
+Keep the last known good artifact available. Rollback is a promotion of that artifact or a revert commit that triggers the pipeline again. Both paths must be rehearsed before launch.
+
+For pull-based Kubernetes delivery and controller reconciliation, see [GitOps deploy flow](/web-systems-delivery/gitops-deploy-flow/). For static hosting settings, see [Cloudflare Pages deployment](/web-systems-delivery/cloudflare-pages-deploy/).
+
+## Further Readings
+
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [SLSA Supply Chain Levels](https://slsa.dev/)
+- [Cloudflare Pages Builds](https://developers.cloudflare.com/pages/configuration/build-configuration/)
