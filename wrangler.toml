@@ -1,5 +1,6 @@
 # Cloudflare Pages - jampuk docs
 # Copy .env.example to .env for local dev if needed.
+name = "jampuk-docs"
 compatibility_date = "2026-09-01"
 
 [vars]
@@ -13,3 +14,6 @@ PUBLIC_DOCS_SITE = "https://docs.jampuk.com"
 # - Build output directory: dist
 # - Root directory: docs
 # - Node version: 24
+
+[assets]
+directory = "./dist"
