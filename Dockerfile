@@ -62,6 +62,7 @@ RUN npm install --omit=dev --no-audit --no-fund \
 # The preview server resolves astro.config.mjs and tsconfig.json (path
 # aliases) at startup, so ship them alongside dist/.
 COPY astro.config.mjs tsconfig.json ./
+COPY src/markdown/ ./src/markdown/
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 8088

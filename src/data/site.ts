@@ -21,6 +21,8 @@ export const SITE = {
   email: 'hi@jampuk.com',
   company: {
     name: 'Jampuk Intelligence Systems',
+    ssmRegistrationNo: '202603223177',
+    jurisdiction: 'Malaysia',
   },
   founder: {
     name: 'Hafiz Zainudin',

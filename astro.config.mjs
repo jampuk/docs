@@ -221,10 +221,15 @@ export default defineConfig({
       ],
     }),
     sitemap({
-      filter: (page) =>
-        !['/403', '/404', '/500', '/502', '/503'].some((p) =>
-          page.includes(p)
-        ),
+      filter: (page) => {
+        const pathname = new URL(page).pathname;
+        // Sitemaps should only list HTML pages. Endpoints such as robots.txt,
+        // llms.txt and humans.txt are generated routes, not navigable pages.
+        if (/\.(html|xml|txt|json)$/.test(pathname)) return false;
+        return !['/403', '/404', '/500', '/502', '/503'].some((p) =>
+          pathname.includes(p)
+        );
+      },
     }),
   ],
 });
