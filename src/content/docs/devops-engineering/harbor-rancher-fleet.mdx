@@ -1,0 +1,136 @@
+---
+title: Harbor and Rancher Fleet
+description: Pull container images from a private Harbor registry in a Fleet GitOps workflow, using Rancher's global registry or a propagated image pull secret.
+sidebar:
+  order: 9
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="note">
+A Fleet deployment from a private registry needs two different credentials: one to read the Helm chart, and one to pull the container images at runtime. `spec.helmSecretName` covers only the first. This page covers the second, which is the one that produces `ImagePullBackOff` when it is missing.
+</Aside>
+
+## Two credentials, not one
+
+| What is being pulled | Where the credential lives | Fleet field |
+| :--- | :--- | :--- |
+| Helm chart from a private repo or OCI registry | Secret in the GitRepo/HelmOp namespace on the upstream cluster | `helmSecretName` |
+| Container image from Harbor | `kubernetes.io/dockerconfigjson` secret in the **downstream** namespace | `imagePullSecrets` on the pod or ServiceAccount |
+
+A `dockerconfigjson` secret created on the upstream cluster does nothing for image pulls unless Fleet copies it downstream or Rancher's registry configuration reaches the node runtime. Treating the two as one step is the usual cause of a deploy that installs the chart but cannot start the pods.
+
+## Prerequisites
+
+- A running Harbor instance reachable from every target cluster.
+- A Harbor robot account with **pull** permission on the required projects. Do not use a personal account: a robot account survives staff changes and rotates without touching a workstation.
+- `kubectl` access to the Rancher management cluster that runs Fleet.
+- Confirmation that the node image trusts the Harbor certificate. Harbor on a Let's Encrypt certificate needs no extra CA on current node images, because the ISRG roots are already in the system trust store. Verify it on older base images rather than assuming it.
+
+```sh
+# 401 with a valid certificate means Harbor is reachable and TLS is trusted.
+# A certificate error here will also fail in containerd.
+curl -sSI https://harbor.example.com/v2/
+```
+
+## Option A: global private registry in Rancher
+
+Use this when Rancher provisions the downstream clusters (RKE2 or K3s) and owns their container runtime configuration.
+
+<Steps>
+1. In the Rancher UI, open the **☰** menu and select **Global Settings**.
+
+2. In the left navigation, click **Registries**, then **Create**.
+
+3. Fill in the registry:
+
+   - **Registry Domain Name**: the Harbor FQDN, for example `harbor.example.com`.
+   - **Authentication**: **Username and Password**.
+   - **Username**: the robot account name.
+   - **Password**: the robot account token.
+
+4. Save the configuration.
+</Steps>
+
+Rancher configures the downstream clusters to authenticate to that registry, so workload pods do not need an `imagePullSecrets` entry of their own.
+
+<Aside type="caution">
+This option does not extend to hosted clusters such as GKE, where the node runtime belongs to the cloud provider and Rancher cannot rewrite it. For hosted clusters, use Option B or Option C.
+</Aside>
+
+## Option B: image pull secret in the workload namespace
+
+This is the portable path: it works on GKE, imported clusters, and RKE2/K3s alike.
+
+<Steps>
+1. Create the secret in the namespace the workload deploys to:
+
+   ```sh
+   kubectl create secret docker-registry harbor-creds \
+     --namespace platform31 \
+     --docker-server=harbor.example.com \
+     --docker-username=<robot-account> \
+     --docker-password=<robot-token>
+   ```
+
+2. Reference it from the chart values, or attach it to the namespace's default ServiceAccount:
+
+   ```yaml
+   imagePullSecrets:
+     - name: harbor-creds
+   ```
+
+3. Keep the manifest out of Git in plaintext. Use Sealed Secrets, SOPS, or External Secrets and let Fleet reconcile the encrypted or referenced form.
+</Steps>
+
+## Option C: propagate a secret with Fleet HelmOps
+
+If the workload is deployed with a `HelmOp` rather than a `GitRepo`, Fleet can copy the secret to each targeted downstream cluster before it installs the chart (Fleet v0.14+, stable since v0.16).
+
+```yaml
+apiVersion: fleet.cattle.io/v1alpha1
+kind: HelmOp
+metadata:
+  name: platform31-core
+  namespace: fleet-default
+spec:
+  helm:
+    releaseName: platform31-core
+    repo: oci://harbor.example.com/platform31/charts
+    chart: core
+    version: 1.4.2
+    values:
+      imagePullSecrets:
+        - name: harbor-creds
+  helmSecretName: harbor-helm-creds
+  downstreamResources:
+    - kind: Secret
+      name: harbor-creds
+```
+
+`downstreamResources` accepts secrets and ConfigMaps that already exist in the same namespace as the `HelmOp`, and removes the copies when a cluster stops being targeted.
+
+## Verify
+
+```sh
+# The secret exists in the downstream namespace
+kubectl get secret harbor-creds -n platform31
+
+# The pods started, rather than sitting in ImagePullBackOff
+kubectl get pods -n platform31
+kubectl describe pod -n platform31 -l app.kubernetes.io/name=core | grep -A3 Events
+```
+
+## Why a direct `kubectl` deploy fails
+
+When the pull secret is delivered by Rancher or Fleet, it reaches workloads that are deployed through the same system. A workload applied directly with `kubectl apply` does not receive it, and the pod fails with `ImagePullBackOff` even though Harbor is reachable and the credentials are valid.
+
+That is the runtime consequence of the "no `kubectl apply` from a laptop" rule: the rule is not only about auditability, it is what guarantees the pull path works.
+
+## Further readings
+
+- [Rancher: Configuring a Global Default Private Registry](https://documentation.suse.com/cloudnative/rancher-manager/v2.15/en/rancher-admin/global-configuration/global-default-private-registry.html)
+- [Fleet: Automated propagation of resources to downstream clusters](https://fleet.rancher.io/how-tos-for-users/downstream-resource-propagation)
+- [Fleet: Create a GitRepo resource](https://fleet.rancher.io/how-tos-for-users/gitrepo-add)
+- [Kubernetes: Pull an image from a private registry](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
+- [Harbor: Robot accounts](https://goharbor.io/docs/latest/administration/robot-accounts/)
