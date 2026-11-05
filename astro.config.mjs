@@ -175,6 +175,8 @@ export default defineConfig({
             'devops-engineering/server-provisioning-checklist',
             'devops-engineering/microservices',
             'devops-engineering/dapr-service-mesh',
+            'devops-engineering/directus-dapr-integration',
+            'devops-engineering/harbor-rancher-fleet',
           ],
         },
         {

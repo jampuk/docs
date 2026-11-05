@@ -1,0 +1,99 @@
+---
+title: Directus integration with Dapr
+description: Guidelines for interacting with the Directus API through Dapr, focusing on authentication and token management.
+sidebar:
+  order: 9
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+Directus is the platform's API management plane (headless CMS). Microservices never call it directly: they go through Dapr, the same seam they use for every other managed service. This keeps Directus a detail at the edge of a service — an adapter implementing a port — rather than a dependency in its domain.
+</Aside>
+
+## 1. Authentication
+
+When invoking the Directus API, you must provide an access token to authenticate your requests. Dapr forwards the `Directus-Access-Token` header as a query parameter to Directus.
+
+### 1.1. User-level access
+
+For operations that should be performed on behalf of the current user, pass the user's access token in the `params` of the `invoke_method` call.
+
+#### 1.1.1. Simple token passing
+
+```python
+from dapr.clients import DaprClient
+
+async def get_user_items(user_token: str):
+    async with DaprClient() as d:
+        response = await d.invoke_method(
+            app_id='directus',
+            method_name=f'items/some_collection?access_token={user_token}',
+            http_verb='GET'
+        )
+        return response.json()
+```
+
+#### 1.1.2. Including additional query parameters
+
+When you need to include additional query parameters along with the access token, build the query string dynamically:
+
+```python
+import json
+from dapr.clients import DaprClient
+
+async def create_workspace(user_token: str, additional_params: dict):
+    # Build query string with access token and additional params
+    params = {"access_token": user_token, **additional_params}
+    query_string = "&".join([f"{key}={value}" for key, value in params.items()])
+    method_name = f"items/workspaces?{query_string}" if query_string else "items/workspaces"
+
+    async with DaprClient() as d:
+        response = await d.invoke_method(
+            app_id='directus',
+            method_name=method_name,
+            data=json.dumps({"name": "New Workspace"}),
+            http_verb='POST',
+            metadata=[("Content-Type", "application/json")]
+        )
+        return response.json()
+```
+
+### 1.2. Admin-level access
+
+For administrative actions that require elevated privileges, use the `ADMIN_TOKEN` environment variable. This token provides unrestricted access to the Directus API and should be used with caution.
+
+```python
+import os
+from dapr.clients import DaprClient
+
+async def create_collection():
+    admin_token = os.getenv("ADMIN_TOKEN")
+    async with DaprClient() as d:
+        response = await d.invoke_method(
+            app_id='directus',
+            method_name=f'collections?access_token={admin_token}',
+            http_verb='POST',
+            data={"collection": "new_collection", "schema": {}, "meta": {}}
+        )
+        return response.json()
+```
+
+## 2. Best practices
+
+- **Token security.** Never expose the `ADMIN_TOKEN` in client-side code or commit it to version control. The token is delivered by the same machinery that delivers the Harbor pull secret (see [Harbor and Rancher Fleet](/devops-engineering/harbor-rancher-fleet/)).
+- **Least privilege.** Whenever possible, use user-level tokens to ensure that operations are performed with the minimum required permissions.
+- **Keep it in the adapter.** The Dapr invocation above lives in an adapter that implements a port. The domain and application layers never see Directus or Dapr, which is what makes the integration swappable and testable.
+
+## 3. Where this sits in the architecture
+
+- In the repository: Directus is declared under `/applications` (Helm + Fleet), like every other managed service.
+- In a service: the call above is an adapter implementation of a port; the use case calls the port.
+- In the deployment: the `ADMIN_TOKEN` is a secret delivered by Fleet/Vault, never a value in Git.
+
+## Further readings
+
+- [Microservices](/devops-engineering/microservices/) for in-service structure and the dependency rule.
+- [Dapr service mesh](/devops-engineering/dapr-service-mesh/) for state, pub/sub and resiliency patterns.
+- [Harbor and Rancher Fleet](/devops-engineering/harbor-rancher-fleet/) for private registry credentials delivered by GitOps.
+- [Directus documentation](https://directus.com/docs/) for the Directus API, collections and authentication model.
