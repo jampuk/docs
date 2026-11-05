@@ -173,6 +173,8 @@ export default defineConfig({
             'devops-engineering/docker-foundations',
             'devops-engineering/kubernetes-helm',
             'devops-engineering/server-provisioning-checklist',
+            'devops-engineering/microservices',
+            'devops-engineering/dapr-service-mesh',
           ],
         },
         {

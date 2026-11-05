@@ -1,0 +1,80 @@
+---
+title: Microservices
+description: Directory structure, dependency rule, ports and adapters, and testing strategy for Python/FastAPI microservices built with Clean Architecture.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="note">
+A microservice is a small, independently deployable service with a well-defined API. This guide covers the Clean Architecture structure we use for Python/FastAPI services: the dependency rule, ports and adapters, and a testing strategy that does not require a cluster.
+</Aside>
+
+## Directory structure
+
+```text
+src/
+  application/   # use cases, FastAPI endpoints (or Reflex pages for UI)
+  domain/        # core business models and rules
+  adapters/      # implementations of ports: DB clients, messaging integrations
+  ports/         # interfaces for external systems: repositories, messaging
+  main.py        # entry point
+  __init__.py    # in src/ and every subdirectory
+tests/           # mirrors src/
+```
+
+## The dependency rule
+
+- `domain` depends on nothing outside itself.
+- `ports` defines interfaces for external systems (repositories, messaging).
+- `adapters` implements ports (database clients, messaging integrations).
+- `application` orchestrates use cases against ports and domain.
+- `main.py` wires adapters to ports and starts the app.
+
+Consequences:
+
+- A service is testable without spinning up a cluster: mock the ports.
+- Swapping a database is a change in one adapter, not a rewrite.
+- FastAPI, the message broker and the database are details at the edge, not the center.
+
+## Component view (representative service)
+
+```text
+C4Component
+title Component diagram for a microservice
+Container_Boundary(container_boundary, "microservice") {
+  Component(application, "Application Layer", "FastAPI", "Use cases, API endpoints")
+  Component(domain, "Domain Layer", "Python", "Core business models and rules")
+  Component(adapters, "Adapters Layer", "Python", "Implementations of ports")
+  Component(ports, "Ports Layer", "Python", "Interfaces for external systems")
+  ComponentQueue(pubsub, "Message Broker", "Messaging", "Handles asynchronous communication")
+  ComponentDb(statestore, "State Store", "Storage", "Manages state")
+}
+Rel(application, domain, "Uses")
+Rel(application, ports, "Uses")
+Rel(adapters, ports, "Implements")
+Rel(domain, adapters, "Uses")
+Rel(adapters, pubsub, "Publishes/Consumes")
+Rel(adapters, statestore, "Reads/Writes")
+```
+
+## Working rules
+
+<Steps>
+1. **Define the port first.** Before writing a database client, write the interface it must satisfy.
+2. **Keep the domain pure.** No framework imports, no I/O, no broker calls in `domain/`.
+3. **Adapters are replaceable.** Each adapter implements one or more ports and nothing else.
+4. **Application layer owns use cases.** HTTP handlers stay thin; business orchestration lives in use cases.
+5. **Tests mirror src/.** Unit tests for domain and application; integration tests for adapters.
+</Steps>
+
+## Local development
+
+Each microservice is self-contained: run it with `docker-compose.yml` and its component files from its own directory. No cluster required. That is only possible because the domain and application layers do not depend on Kubernetes — they depend on ports.
+
+## Further readings
+
+- [Dapr service mesh](/devops-engineering/dapr-service-mesh/) for state, pub/sub and resiliency.
+- [Kubernetes and Helm](/devops-engineering/kubernetes-helm/) for the runtime layer.
+- [Docker foundations](/devops-engineering/docker-foundations/) for container baselines.

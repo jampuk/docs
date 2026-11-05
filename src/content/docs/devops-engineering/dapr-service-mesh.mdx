@@ -1,0 +1,90 @@
+---
+title: Dapr service mesh
+description: Service-to-service communication, state management, pub/sub and resiliency patterns with Dapr on Platform31.
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+Dapr is the seam between microservices and platforms. Services never call each other directly and never talk to a database directly — they go through Dapr's HTTP/gRPC APIs, which are backed by pluggable components configured per environment.
+</Aside>
+
+## Why Dapr
+
+- **Service discovery** without hard-coded URLs.
+- **State management** with swappable stores (Redis, PostgreSQL, MongoDB, ...).
+- **Pub/sub** for asynchronous communication.
+- **Resiliency** — retries, circuit breakers, timeouts — configured, not coded.
+- **Observability** built in.
+
+## Internal service calls
+
+Internal REST calls between microservices may use Dapr endpoints (service invocation), instead of direct service URLs. That keeps networking, retries and tracing in one place.
+
+```text
+# Instead of calling http://other-service:8080/api
+# call the Dapr sidecar:
+curl http://localhost:3500/v1.0/invoke/other-service/method/api
+```
+
+## State management
+
+A service reads and writes state through Dapr's state API. The backing store is selected by a component YAML, so the same code runs against Redis locally and PostgreSQL in production.
+
+```yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+    - name: redisHost
+      value: localhost:6379
+```
+
+## Pub/sub
+
+Asynchronous events flow through Dapr pub/sub components. Publishers and subscribers are decoupled: a service publishes to a topic, another subscribes. The broker (Redis, Kafka, ...) is configured, not coded.
+
+## Resiliency
+
+Retry policies, circuit breakers and timeouts are declared in resiliency specs rather than sprinkled through service code. That keeps failure handling consistent and auditable.
+
+```yaml
+apiVersion: dapr.io/v1alpha1
+kind: Resiliency
+metadata:
+  name: default
+spec:
+  policies:
+    retries:
+      default:
+        policy: constant
+        maxRetries: 3
+        duration: 2s
+    circuitBreakers:
+      default:
+        maxRequests: 1
+        interval: 10s
+        timeout: 30s
+        trip: consecutiveFailures >= 5
+  targets:
+    apps:
+      "*":
+        retry: default
+        circuitBreaker: default
+```
+
+## Local development
+
+Dapr runs as a sidecar alongside the microservice. Each microservice ships its own Dapr component files so `dapr run` works from the service directory with no cluster.
+
+## Further readings
+
+- [Microservices](/devops-engineering/microservices/) for in-service structure.
+- [Kubernetes and Helm](/devops-engineering/kubernetes-helm/) for the runtime layer.
+- [Dapr documentation](https://docs.dapr.io/)
