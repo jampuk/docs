@@ -1,0 +1,277 @@
+---
+// Floating "Back to ..." banner (bottom-left of the viewport).
+// When a visitor arrives from a sibling Jampuk site (www.jampuk.com or
+// read.jampuk.com), this offers a one-click return to the exact page they
+// came from. Two halves, both handled here:
+//   1. Exit: sibling links clicked anywhere on this site are stamped with
+//      `?via=docs&via_path=...` so the destination knows the source.
+//   2. Arrival: read those params (or fall back to document.referrer, which
+//      cross-origin only exposes the origin of), show the banner, then strip
+//      the params so canonical URLs stay clean. The source is kept in
+//      sessionStorage so the banner persists across this session until it is
+//      dismissed or used.
+//
+// Same contract on the other two sites (blog, website); only SELF differs.
+// Styles live in src/styles/custom.css (`.cross-site-banner`).
+---
+
+<div
+    id="cross-site-banner"
+    class="cross-site-banner"
+    role="region"
+    aria-label="Return to the previous Jampuk site"
+    data-pagefind-ignore
+    hidden
+>
+    <a id="cross-site-banner-link" class="cross-site-banner-link" href="#">
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+            ></path>
+        </svg>
+        <span>Back to <span id="cross-site-banner-label"></span></span>
+    </a>
+    <button
+        type="button"
+        id="cross-site-banner-close"
+        class="cross-site-banner-close"
+        aria-label="Dismiss"
+    >
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+            ></path>
+        </svg>
+    </button>
+</div>
+
+<script is:inline>
+    (function () {
+        var banner = document.getElementById("cross-site-banner");
+        if (!banner) return;
+        // Escape Starlight's `.main-pane { isolation: isolate }` stacking
+        // context: as long as the banner lives inside the footer, its
+        // z-index only counts against siblings within .main-pane, and
+        // Starlight's own fixed layers paint over it (sidebar
+        // --sl-z-index-menu: 5, header --sl-z-index-navbar: 10). As a
+        // direct child of <body> it stacks against those layers instead.
+        document.body.appendChild(banner);
+
+        var SITES = {
+            "field-notes": { host: "read.jampuk.com", label: "read Field Notes", home: "/" },
+            docs: { host: "docs.jampuk.com", label: "Jampuk Docs", home: "/" },
+            website: { host: "www.jampuk.com", label: "Jampuk.com", home: "/" },
+        };
+        // This site's key in SITES.
+        var SELF = "docs";
+        var STORAGE_KEY = "jampuk-cross-site-banner";
+
+        function keyForHost(hostname) {
+            var host = String(hostname || "").toLowerCase();
+            for (var key in SITES) {
+                if (SITES[key].host === host) return key;
+            }
+            return null;
+        }
+
+        // Paths must stay on the source site's origin: blocks protocol-relative
+        // (`//evil.com`) and lookalike values from turning the back link into
+        // an open redirect.
+        function safePath(path, host) {
+            if (typeof path !== "string" || path.length > 512) return false;
+            try {
+                return new URL(path, "https://" + host).origin === "https://" + host;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Analytics rides the existing gtag shim (Partytown-forwarded when the
+        // measurement ID is configured; silently absent otherwise).
+        function track(event, from) {
+            try {
+                if (typeof window.gtag === "function") {
+                    window.gtag("event", event, { from_site: from });
+                }
+            } catch (e) {
+                /* analytics unavailable */
+            }
+        }
+
+        // --- 1. Exit tagging: stamp links to sibling sites with this site's
+        // identity so the destination can offer an exact "Back to ..." link.
+        document.addEventListener(
+            "click",
+            function (event) {
+                if (
+                    event.defaultPrevented ||
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                ) {
+                    return;
+                }
+                if (!(event.target instanceof Element)) return;
+                var anchor = event.target.closest("a[href]");
+                if (!anchor) return;
+                var raw = anchor.getAttribute("href") || "";
+                if (
+                    !raw ||
+                    raw.charAt(0) === "#" ||
+                    raw.indexOf("mailto:") === 0 ||
+                    raw.indexOf("tel:") === 0 ||
+                    raw.indexOf("javascript:") === 0
+                ) {
+                    return;
+                }
+                var url;
+                try {
+                    url = new URL(raw, location.href);
+                } catch (e) {
+                    return;
+                }
+                if (url.protocol !== "http:" && url.protocol !== "https:") return;
+                if (url.origin === location.origin) return;
+                var target = keyForHost(url.hostname);
+                if (!target || target === SELF) return;
+                url.searchParams.set("via", SELF);
+                url.searchParams.set("via_path", location.pathname);
+                anchor.setAttribute("href", url.href);
+            },
+            true,
+        );
+
+        // --- 2. Arrival: resolve where this visitor came from. ---
+        var params = new URLSearchParams(location.search);
+        var via = params.get("via");
+        var source = null;
+
+        if (via && via !== SELF && SITES[via]) {
+            var viaPath = params.get("via_path") || SITES[via].home;
+            if (safePath(viaPath, SITES[via].host)) {
+                source = { key: via, path: viaPath };
+            }
+        }
+        if (!source) {
+            // Referrer fallback (middle-click, new tab, param stripped en
+            // route): cross-origin referrers expose the origin only, so link
+            // to the sibling's home rather than the exact page.
+            try {
+                if (document.referrer) {
+                    var key = keyForHost(new URL(document.referrer).hostname);
+                    if (key && key !== SELF) {
+                        source = { key: key, path: SITES[key].home };
+                    }
+                }
+            } catch (e) {
+                /* malformed referrer */
+            }
+        }
+
+        if (source) {
+            try {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(source));
+            } catch (e) {
+                /* storage unavailable */
+            }
+            if (via) {
+                // One-shot handoff: strip the params so they never leak into
+                // canonical links, shares or bookmarks.
+                params.delete("via");
+                params.delete("via_path");
+                var query = params.toString();
+                history.replaceState(
+                    null,
+                    "",
+                    location.pathname + (query ? "?" + query : "") + location.hash,
+                );
+            }
+        } else {
+            // No fresh handoff: resume an earlier arrival from this session.
+            try {
+                var stored = sessionStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    var parsed = JSON.parse(stored);
+                    if (
+                        parsed &&
+                        typeof parsed.key === "string" &&
+                        parsed.key !== SELF &&
+                        SITES[parsed.key]
+                    ) {
+                        var path =
+                            typeof parsed.path === "string"
+                                ? parsed.path
+                                : SITES[parsed.key].home;
+                        if (safePath(path, SITES[parsed.key].host)) {
+                            source = { key: parsed.key, path: path };
+                        }
+                    }
+                }
+            } catch (e) {
+                /* storage unavailable or malformed */
+            }
+        }
+        if (!source) return;
+
+        // --- 3. UI ---
+        var link = document.getElementById("cross-site-banner-link");
+        var label = document.getElementById("cross-site-banner-label");
+        var close = document.getElementById("cross-site-banner-close");
+        if (!link || !label || !close) return;
+
+        var site = SITES[source.key];
+        try {
+            link.setAttribute(
+                "href",
+                new URL(source.path, "https://" + site.host).href,
+            );
+        } catch (e) {
+            return;
+        }
+        label.textContent = site.label;
+
+        // Keep clear of the full-width consent bar while it is still undecided.
+        var consent = document.getElementById("consent-banner");
+        if (consent && consent.offsetHeight > 0) {
+            banner.style.bottom = "calc(" + consent.offsetHeight + "px + 1.25rem)";
+        }
+
+        function hide(event) {
+            try {
+                sessionStorage.removeItem(STORAGE_KEY);
+            } catch (e) {
+                /* storage unavailable */
+            }
+            banner.hidden = true;
+            track(event, source.key);
+        }
+        // Navigation proceeds; the storage wipe just ends this session's banner.
+        close.addEventListener("click", function () {
+            hide("cross_site_banner_dismiss");
+        });
+        link.addEventListener("click", function () {
+            hide("cross_site_banner_click");
+        });
+
+        banner.hidden = false;
+        track("cross_site_banner_show", source.key);
+    })();
+</script>

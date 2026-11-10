@@ -3,10 +3,12 @@
 // Injects the share row above the default footer (edit link, last updated,
 // pagination). Shown on leaf guide pages only - the splash home page,
 // category overviews (`*/index`) and the 404 page are excluded.
-// Also renders the Cookie settings trigger and ConsentBanner.
+// Also renders the Cookie settings trigger, ConsentBanner and the
+// cross-site "Back to ..." banner.
 import Default from "@astrojs/starlight/components/Footer.astro";
 import ShareButtons from "./ShareButtons.astro";
 import ConsentBanner from "./ConsentBanner.astro";
+import CrossSiteBanner from "./CrossSiteBanner.astro";
 import { CONSENT_EVENT } from "@lib/consent";
 
 const gaId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
@@ -46,6 +48,8 @@ const showShare =
 }
 
 <ConsentBanner />
+
+<CrossSiteBanner />
 
 {
   gaId && (
