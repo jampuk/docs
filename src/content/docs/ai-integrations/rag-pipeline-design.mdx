@@ -87,7 +87,12 @@ User Query: {query}
 - **Source Attribution Verification**: Check that every claim in the generated text maps directly back to a retrieved chunk.
 - **Automated Faithfulness Scoring**: In CI/CD, run evaluation pipelines (e.g., Ragas, TruLens) to assert context precision, context recall, and answer faithfulness score above 0.90.
 
+The same verifier pattern can gate agent edits at runtime, not just RAG answers in CI. See [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) for the edit-check-repair contract.
+
 ## Further Readings
 
-- [RAG Architecture Patterns](https://docs.anthropic.com/en/docs/build-with-claude/retrieval-augmented-generation)
+- [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) for runtime grounding and failure-gated repair.
+- [LLM evaluation](/ai-integrations/llm-evaluation/) for offline faithfulness suites.
+- [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/) for choosing verification by task class.
+- [RAG Architecture Patterns](https://platform.claude.com/cookbook/capabilities-retrieval-augmented-generation-guide)
 - [Vector Database Comparison](https://qdrant.tech/articles/what-is-a-vector-database/)

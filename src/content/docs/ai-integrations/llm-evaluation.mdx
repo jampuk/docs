@@ -11,6 +11,8 @@ import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 Deploying LLM systems to production requires automated, quantifiable evaluation suites. Without automated regression testing, prompt edits, model version bumps, or retrieval adjustments can introduce silent hallucinations and degrade output quality.
 </Aside>
 
+Evaluation measures output quality. The runtime decision to accept or reject a specific candidate is a separate control: see [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) for failure-gated repair, and [Cost per successful task](/ai-integrations/cost-per-successful-task/) for tying quality telemetry to spend.
+
 ## Dual Evaluation Architecture
 
 ```mermaid
@@ -85,5 +87,8 @@ When exact string matching is impossible, use a high-reasoning frontier model (e
 
 ## Further Readings
 
+- [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) for runtime failure gating.
+- [Cost per successful task](/ai-integrations/cost-per-successful-task/) for cost telemetry alongside quality metrics.
+- [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/) for choosing the evaluation strategy by task class.
 - [LLM Evaluation Frameworks](https://github.com/evidentlyai/evidently)
 - [MLOps Evaluation Patterns](https://mlflow.org/docs/latest/)

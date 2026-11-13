@@ -11,6 +11,8 @@ import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 Never embed vendor-specific SDKs or hard-coded API keys directly into your business logic. A model gateway abstracts model providers behind stable adapter ports, allowing seamless failover, cost optimization, and zero-trust security boundaries.
 </Aside>
 
+The gateway routes a request to a provider. It does not decide which tasks to delegate or how much context a subagent should receive; that is task-level routing. See [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) for planner-led topologies and bounded executors.
+
 ## Gateway Architecture
 
 ```mermaid
@@ -97,5 +99,8 @@ Before requests leave the corporate VPC perimeter:
 
 ## Further Readings
 
+- [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) for task-level routing above the gateway.
+- [Cost per successful task](/ai-integrations/cost-per-successful-task/) for quotas, caching, and routing economics.
+- [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/) for choosing the overall topology.
 - [API Gateway Patterns](https://aws.amazon.com/api-gateway/)
 - [Service Mesh Introduction](https://istio.io/latest/docs/concepts/what-is-istio/)

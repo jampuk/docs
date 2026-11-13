@@ -8,7 +8,7 @@ sidebar:
 
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-Guides and reference for adding AI capabilities to existing systems: retrieval, prompt/context design, model routing and evaluation.
+Guides and reference for adding AI capabilities to existing systems: retrieval, prompt/context design, model routing, evaluation and agent architecture.
 
 <CardGrid stagger>
   <LinkCard title="RAG pipeline design" href="/ai-integrations/rag-pipeline-design/" description="Chunking, retrieval and grounding patterns for production RAG." />
@@ -16,4 +16,18 @@ Guides and reference for adding AI capabilities to existing systems: retrieval, 
   <LinkCard title="Model gateway" href="/ai-integrations/model-gateway/" description="Provider-agnostic gateway layer for routing, retries and rate limits." />
   <LinkCard title="LLM evaluation" href="/ai-integrations/llm-evaluation/" description="Offline and online evaluation methods for LLM outputs." />
   <LinkCard title="Vector store options" href="/ai-integrations/vector-store-options/" description="Reference comparison of vector stores and indexing options." />
+</CardGrid>
+
+## Agent Architecture
+
+Design the loop around the task, not the model. Start with the decision guide, then follow the architecture or operational reference that fits the task.
+
+<CardGrid stagger>
+  <LinkCard title="Agent architecture decision guide" href="/ai-integrations/agent-architecture-decision-guide/" description="Choose between verifiable loops, compiled workflows, and planner-led delegation." />
+  <LinkCard title="Verifiable execution loops" href="/ai-integrations/verifiable-execution-loops/" description="Edit, verify, and repair with deterministic checks and failure codes." />
+  <LinkCard title="Workflow compilation" href="/ai-integrations/workflow-compilation/" description="Compile stable, high-volume procedures into a versioned small-model artifact." />
+  <LinkCard title="Agent delegation and routing" href="/ai-integrations/agent-delegation-routing/" description="Split planning from execution with bounded subagents and task-level routing." />
+  <LinkCard title="Agent audit and observability" href="/ai-integrations/agent-audit-observability/" description="Make permission changes, background jobs, and external state visible to the agent." />
+  <LinkCard title="Cost per successful task" href="/ai-integrations/cost-per-successful-task/" description="Measure retries, reviews, and delegation against verified outcomes." />
+  <LinkCard title="Agent scaffold failure modes" href="/ai-integrations/agent-scaffold-failure-modes/" description="Diagnose and fix the five common scaffold failures." />
 </CardGrid>

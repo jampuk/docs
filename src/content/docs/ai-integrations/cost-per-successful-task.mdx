@@ -1,0 +1,119 @@
+---
+title: Cost per successful task
+description: Measure agent economics per verified success rather than per token, and instrument the retries, reviews, and delegations that change the result.
+sidebar:
+  order: 6
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip">
+Token price is an input. Resolved tasks and constrained successes are the output. A cheaper model with a lower success rate, more retries, and more human review can be the more expensive system.
+</Aside>
+
+## The metric
+
+```text
+cost_per_success =
+  (model_cost + tool_cost + retry_cost + review_cost + infrastructure_cost)
+  / verified_successes
+```
+
+Two details make the metric useful:
+
+- **Verified success.** Count tasks that pass the external check, not tasks that produced an answer. For a coding task that means the tests pass; for a data task it means reconciliation succeeds; for an enterprise procedure it means the required approval and audit conditions hold.
+- **All-in cost.** Include retries, verifier runs, delegated subagents, cached and uncached tokens, human review minutes, and the infrastructure that runs the loop. Excluding review cost is the most common way a cheap model looks better than it is.
+
+## Instrument the task
+
+Emit one cost record per task, correlated with the trace ID.
+
+```json
+{
+  "trace_id": "trc_01j9z6k4",
+  "task_id": "tsk_01j9z6k4",
+  "route": "verifiable_loop",
+  "model": "small-8b",
+  "attempts": 2,
+  "tokens": {
+    "input": 18400,
+    "output": 2100,
+    "cached_input": 9000
+  },
+  "verifier": {
+    "status": "pass",
+    "checks_run": 14
+  },
+  "outcome": "resolved",
+  "review_minutes": 0,
+  "cost_usd": 0.031,
+  "latency_ms": 18400
+}
+```
+
+| Field | Why it matters |
+| :--- | :--- |
+| `route` | Compares architectures, not just models |
+| `attempts` | Exposes retry-prone tasks and weak verifiers |
+| `tokens.cached_input` | Shows whether caching is actually reducing spend |
+| `verifier.checks_run` | Attributes cost to the feedback loop, not only the model |
+| `outcome` | Separates resolved, escalated, and abandoned work |
+| `review_minutes` | Captures the human cost that often dominates failures |
+| `cost_usd` | Uses provider pricing at the time of the call |
+
+For delegated tasks, attribute subagent cost to the parent task. A planner that looks cheap while spawning expensive executors is not cheap.
+
+## An illustrative comparison
+
+The numbers below are illustrative, not vendor pricing. The point is the shape of the calculation.
+
+| System | Model and tools per attempt | Attempts per success | Review per failed attempt | Cost per success |
+| :--- | ---: | ---: | ---: | ---: |
+| Frontier model only | $0.80 | 1.1 | $0.00 | $0.88 |
+| Small model + verifier | $0.12 | 1.8 | $0.05 | $0.26 |
+| Small model without verifier | $0.10 | 1.4 | $0.60 | $0.38 |
+
+The third row is the trap: the lowest per-attempt price produces a worse result than the verified loop because failures reach a human. The second row also shows why the verifier is not free — it adds attempts and check runs, but it buys a success signal.
+
+## Cost drivers
+
+| Driver | Symptom | Lever |
+| :--- | :--- | :--- |
+| Context bloat | Input tokens grow across a session | Delegate verbose work and return summaries; see [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) |
+| Retry loops | Attempts per success above the task baseline | Failure codes, retry ceilings, and unrepairable escalation |
+| Weak verifier | High escalation rate or regressions after "success" | Better checks and read-only evaluators; see [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) |
+| Uncached repetition | Identical prompts billed repeatedly | Semantic or exact caching at the [model gateway](/ai-integrations/model-gateway/) |
+| Frontier overuse | Expensive model on routine steps | Select-then-Solve routing and compiled workflows |
+| Human review | Review minutes dominate the unit cost | Route only genuine exceptions to people |
+
+## Budget controls
+
+Cost telemetry is only useful if it can change behaviour.
+
+- **Per-task budget.** Set a maximum token, turn, and review budget before the task starts. Escalate when it is exhausted.
+- **Per-tenant quota.** Prevent one workload or customer from consuming the shared pool.
+- **Routing thresholds.** Send a task to a cheaper path only while its expected cost per success remains lower.
+- **Anomaly alerts.** Alert on tasks whose cost is a multiple of the class baseline, not on raw daily spend alone.
+- **Kill switches.** Stop a runaway loop at the runtime layer, not by waiting for the invoice.
+
+## Reporting
+
+Track cost per successful task by:
+
+- task class and route
+- model and provider
+- verifier outcome and attempt count
+- customer or tenant
+- week-over-week trend
+
+Pair it with [LLM evaluation](/ai-integrations/llm-evaluation/) so a cost improvement that reduces quality is visible immediately. The goal is not the cheapest token; it is the lowest cost per verified outcome at the required reliability.
+
+## Further Readings
+
+- [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/) for choosing the architecture before optimising its cost.
+- [Model gateway](/ai-integrations/model-gateway/) for caching, quotas, and provider fallback.
+- [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) for attempts and verifier economics.
+- [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) for context isolation and subagent budgets.
+- [LLM evaluation](/ai-integrations/llm-evaluation/) for quality telemetry alongside cost telemetry.
+- [Agent scaffold failure modes](/ai-integrations/agent-scaffold-failure-modes/) for cost-driving anti-patterns.
+- [FinOps Foundation](https://www.finops.org/) for cloud cost-management practices.

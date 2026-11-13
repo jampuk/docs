@@ -57,7 +57,11 @@ export const IngestionExtractionSchema = z.object({
 export type IngestionExtraction = z.infer<typeof IngestionExtractionSchema>;
 ```
 
-Pass the JSON schema definition directly into the model's `response_format` (e.g. OpenAI Structured Outputs or Anthropic Tool Calling) to guarantee 100% syntactically valid JSON responses.
+Pass the JSON schema definition directly into the model's `response_format` (e.g. OpenAI Structured Outputs or Anthropic Tool Calling) to guarantee schema-conformant JSON responses for providers that support structured outputs; validate at the boundary for providers that do not.
+
+Syntax guarantees are not the same as multi-turn reliability. Small models can still lose schema compliance as the conversation grows; see [Agent scaffold failure modes](/ai-integrations/agent-scaffold-failure-modes/) for the JSON pipeline cliff and its fixes.
+
+When a procedure is stable and high-volume, moving it out of the prompt entirely may be cheaper than re-reading it on every call. See [Workflow compilation](/ai-integrations/workflow-compilation/) for the trade-offs and artifact lifecycle.
 
 ---
 
@@ -71,5 +75,8 @@ Treat prompts as production software artifacts:
 
 ## Further Readings
 
-- [Prompt Engineering Guide](https://prompthero.com/how-to-write-ai-prompts)
+- [Agent scaffold failure modes](/ai-integrations/agent-scaffold-failure-modes/) for the JSON pipeline cliff and context bloat.
+- [Workflow compilation](/ai-integrations/workflow-compilation/) for removing stable procedures from runtime context.
+- [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) for context isolation in subagents.
+- [Prompt Engineering Guide](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview)
 - [Context Window Design](https://www.anthropic.com/research/effective-context-engineering-for-ai-agents)

@@ -28,6 +28,7 @@ flowchart LR
 1. **Phase 01: Technical Scoping & Architecture Lock (Days 1–3)**
    - **Requirement Extraction**: Detailed review of existing systems, API contracts, domain registries, and business constraints.
    - **Clean Architecture Mapping**: Isolate core business logic from external dependencies (databases, model providers, third-party APIs) using Ports & Adapters.
+   - **Architecture Selection**: Choose between verifiable execution loops, compiled workflows, and planner-led delegation using the [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/).
    - **Scope Lock & Fixed Quote**: Lock exact deliverable checklist, timeline, and all-inclusive flat fee. No scope creep, no hourly billing.
 
 2. **Phase 02: Engineering Build & Private VPC Scaffolding (Days 4–10)**
@@ -56,5 +57,7 @@ flowchart LR
 
 ## Further Readings
 
+- [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/) for the architecture selection made during scoping.
+- [Agent audit and observability](/ai-integrations/agent-audit-observability/) for the observation boundary handed over with the runtime.
 - [Agile Software Development](https://www.atlassian.com/agile/software-development)
 - [Fixed-Price Engagement Models](https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/delivering-large-scale-it-projects-on-time-on-budget-and-on-value)

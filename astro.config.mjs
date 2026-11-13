@@ -161,6 +161,18 @@ export default defineConfig({
             'ai-integrations/model-gateway',
             'ai-integrations/llm-evaluation',
             'ai-integrations/vector-store-options',
+            {
+              label: 'Agent Architecture',
+              items: [
+                'ai-integrations/agent-architecture-decision-guide',
+                'ai-integrations/verifiable-execution-loops',
+                'ai-integrations/workflow-compilation',
+                'ai-integrations/agent-delegation-routing',
+                'ai-integrations/agent-audit-observability',
+                'ai-integrations/cost-per-successful-task',
+                'ai-integrations/agent-scaffold-failure-modes',
+              ],
+            },
           ],
         },
         {

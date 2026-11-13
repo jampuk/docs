@@ -40,10 +40,17 @@ Every Agentic Grid sprint is bound by a fixed deliverable checklist established 
 ### 4. Observability & Operational Runbooks
 - [ ] **Distributed Tracing & Metrics**: OpenTelemetry instrumentation reporting model latencies, token consumption, and error rates to Grafana or Datadog.
 - [ ] **Hallucination & Eval Suite**: Automated test suite configured in CI to detect drift or accuracy regressions.
+- [ ] **Verifier Suite**: Runtime checks with stable failure codes, read-only evaluators, and explicit retry ceilings.
+- [ ] **Routing Policy**: A tested Select-then-Solve policy with subagent tool allowlists and token, turn, and time budgets.
+- [ ] **Audit Observation Sink**: Audit logs, event streams, and change data capture correlated to agent traces by task ID.
+- [ ] **Cost Telemetry**: Cost per successful task reported by route, model, attempt count, and tenant.
 - [ ] **Operational Runbook**: Living markdown runbook covering deployment, routine maintenance, key rotation, and rollback playbooks.
 - [ ] **Recorded Architecture Walkthrough**: Comprehensive 60-minute video walkthrough explaining system design and operational workflows.
 
 ## Further Readings
 
+- [Agent audit and observability](/ai-integrations/agent-audit-observability/) for audit observations and side-effect visibility.
+- [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/) for scoping the architecture before build.
+- [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) for the verifier suite handed over with the runtime.
 - [Kubernetes Security Checklist](https://kubernetes.io/docs/concepts/security/)
 - [Infrastructure as Code Standards](https://developer.hashicorp.com/terraform/language/style)

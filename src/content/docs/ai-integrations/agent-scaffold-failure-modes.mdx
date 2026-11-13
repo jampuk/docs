@@ -1,0 +1,133 @@
+---
+title: Agent scaffold failure modes
+description: Diagnose and fix the five common scaffold failures that give back the gains of a good model and a good loop.
+sidebar:
+  order: 7
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+Most agent failures are scaffold failures, not model failures. The model can be capable and the loop can still lose the gains through schema collapse, coercive refinement, unnecessary reasoning, context bloat, or invisible side effects.
+</Aside>
+
+## Failure reference
+
+| Failure mode | Typical symptom | Root cause | Fix | Detail |
+| :--- | :--- | :--- | :--- | :--- |
+| **JSON pipeline cliff** | Valid output on turn one, malformed output on turn three | Small models lose schema compliance across complex multi-turn JSON | Plain-text messaging, validation at boundaries, rigid decoding | [Prompt and context engineering](/ai-integrations/prompt-context-engineering/) |
+| **Coercive over-correction** | Passing code keeps changing; diffs grow without a failing check | Refinement prompt treats every candidate as improvable | Refine only on explicit verifier failure; add a skip path | [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) |
+| **Unnecessary paradigm overhead** | Reflection or chain-of-thought runs on every task | One reasoning pattern applied universally | Route by task with a Select-then-Solve classifier | [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) |
+| **Execution context bloat** | Main-agent input tokens grow all session; latency follows | The planner carries every line of shell or log output | Delegate verbose operations to bounded subagents | [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) |
+| **Silent enterprise violation** | A permission or background state change never appears in tool output | Observation space stops at tool responses | Add audit logs, event streams, and change data capture | [Agent audit and observability](/ai-integrations/agent-audit-observability/) |
+
+## 1. JSON pipeline cliff
+
+**What it looks like.** A small model produces a valid JSON object for a simple request, then degrades as the schema grows: missing fields, stringified arrays, or a prose preamble before the object. Downstream validation fails and the retry produces a different malformed shape.
+
+**Why it happens.** Complex multi-turn JSON schemas combine two pressures: the model must track the schema across turns, and it must translate its reasoning into a rigid format. Small models have less spare capacity for that translation. The failure compounds because each malformed response becomes part of the next prompt.
+
+**How to fix it.**
+
+- Keep the agent's internal messaging in plain text or a minimal envelope, and validate at system boundaries.
+- Use the provider's structured-output or tool-calling mode for the boundary where JSON is actually required.
+- Validate before the next turn. Do not feed a malformed object back into the loop.
+- Split large schemas into smaller, purpose-specific objects instead of one multi-purpose contract.
+- Return a stable error code on validation failure so the repair step has a target.
+
+Do not respond to schema collapse by adding more format instructions to the prompt. That increases the translation burden without changing the loop.
+
+## 2. Coercive over-correction
+
+**What it looks like.** The verifier passes, but the refinement step still rewrites the candidate. The next check fails, the agent repairs again, and the diff drifts away from the original task. Working code becomes collateral damage.
+
+**Why it happens.** The refinement prompt is written as an instruction to improve, not as a response to a failure. The model complies by finding something to change.
+
+**How to fix it.**
+
+- Gate every refinement on an explicit verifier failure.
+- Include a `SKIP` path when the candidate already passes.
+- Pass the failure code and failed checks, not a vague request to "review".
+- Prohibit edits outside the submitted change set.
+- Cap attempts and escalate unrepairable failures instead of looping.
+
+A refinement loop without a failure gate is a regression generator with extra steps.
+
+## 3. Unnecessary paradigm overhead
+
+**What it looks like.** Every task gets a reflection pass, a chain-of-thought preamble, a debate between agents, or a planning phase — even when the task is a single known tool call. Latency and token cost rise without a measurable quality gain.
+
+**Why it happens.** A pattern that helped on hard tasks is applied universally because the runtime has no task-level routing.
+
+**How to fix it.**
+
+- Classify the task before choosing the reasoning pattern.
+- Reserve planning and reflection for ambiguous, multi-step, or high-risk work.
+- Use direct tool calls for tasks with known arguments.
+- Measure quality and cost by task class; remove overhead that does not pay for itself.
+- Keep a small set of routes and make them testable.
+
+The fix is not "less reasoning". It is reasoning in the right place.
+
+## 4. Execution context bloat
+
+**What it looks like.** The main agent's input tokens climb throughout the session. Shell output, test logs, file dumps, and retrieved documents accumulate in the planner context. Latency rises, the model starts missing earlier instructions, and cost grows faster than the work.
+
+**Why it happens.** Tool output is appended directly to the main conversation because that is the simplest wiring. The planner then carries every line for the rest of the task.
+
+**How to fix it.**
+
+- Delegate verbose shell and log processing to a bounded subagent.
+- Return a summary, artifact reference, and structured fields to the planner.
+- Store the full transcript in the trace store, not in the active context.
+- Set token and turn budgets on delegated work.
+- Re-read specific sources on demand instead of preloading them "just in case".
+
+The goal is not to hide information from the planner. It is to give the planner the decision-relevant slice.
+
+## 5. Silent enterprise violation
+
+**What it looks like.** The agent completes a task, but an asynchronous permission change, background job, or external state update changed the conditions underneath it. No tool response reported the change, so the planner never re-evaluated the constraint.
+
+**Why it happens.** The observation space is limited to direct tool output. Enterprise state changes also arrive through audit logs, event streams, webhooks, and change data capture — channels the agent was never wired to read.
+
+**How to fix it.**
+
+- Treat audit observations as part of the agent interface, not an afterthought.
+- Correlate tool actions with audit events using a shared trace ID.
+- Add detection rules for unapproved privilege changes and unsettled background jobs.
+- Make missing observations count as unverified, not successful.
+- Give the verifier read access to the observation stream.
+
+A stronger prompt cannot compensate for a state change the agent cannot see.
+
+## Related failure modes
+
+Two more failures commonly appear alongside the five above:
+
+| Failure mode | Symptom | Fix |
+| :--- | :--- | :--- |
+| **Verifier co-option** | The agent edits tests or fixtures to make checks pass | Keep tests outside the agent's write scope; review test diffs separately |
+| **Retry runaway** | The loop repeats the same failed action until the budget ends | Cap attempts, detect repeated failure codes, and escalate with evidence |
+
+## Pre-launch checklist
+
+- [ ] Every edit is followed by a selected check, and the selection rule is logged.
+- [ ] The verifier runs read-only and returns a stable failure code.
+- [ ] Passing candidates have a skip path; refinement only runs on failure.
+- [ ] Each task class has an explicit route; reflection is not universal.
+- [ ] Verbose tool output is delegated or summarised before it reaches the planner.
+- [ ] Subagents have tool allowlists and token, turn, and time budgets.
+- [ ] Audit logs, event streams, and CDC are part of the observation space.
+- [ ] Missing observations are treated as unverified.
+- [ ] Cost per successful task is measured, not just token price.
+
+## Further Readings
+
+- [Agent architecture decision guide](/ai-integrations/agent-architecture-decision-guide/) for choosing the architecture that avoids these failures.
+- [Verifiable execution loops](/ai-integrations/verifiable-execution-loops/) for failure-gated repair and read-only evaluators.
+- [Agent delegation and routing](/ai-integrations/agent-delegation-routing/) for context isolation and bounded subagents.
+- [Agent audit and observability](/ai-integrations/agent-audit-observability/) for expanding the observation space.
+- [Cost per successful task](/ai-integrations/cost-per-successful-task/) for the economics of retries and review.
+- [Prompt and context engineering](/ai-integrations/prompt-context-engineering/) for structured output and context budgeting.
+- [LLM evaluation](/ai-integrations/llm-evaluation/) for detecting regressions before they reach production.
