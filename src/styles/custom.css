@@ -756,5 +756,230 @@ starlight-card,
   outline-offset: 2px;
 }
 
+/* ── "Show Diagram" button (src/scripts/diagram-viewer.js) ──
+   Placed directly below the Expressive Code frame as a sibling (fully outside
+   EC's absolutely-positioned toolbar), so it is always rendered and never
+   clipped. Styled to match the docs' VitePress-style dark theme. */
+.ec-btn-diagram {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 26px !important;
+  min-width: 72px !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 0 12px !important;
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-text-muted);
+  background-color: var(--vp-code-bg) !important;
+  border: 1px solid var(--vp-border) !important;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+/* Fallback placement: sibling right after the code frame.
+   `position: relative` is required: EC's figure.frame is itself positioned,
+   and positioned elements paint above static-flow siblings — without this,
+   the figure's background covers the button. */
+.ec-btn-diagram--below {
+  position: relative;
+  z-index: 1;
+  margin-top: -4px;
+  margin-bottom: 20px;
+}
+
+.ec-btn-diagram:hover {
+  color: var(--color-amber);
+  border-color: var(--color-amber);
+}
+
+.ec-btn-diagram:focus-visible {
+  outline: 2px solid var(--color-tertiary);
+  outline-offset: 2px;
+}
+
+.ec-btn-diagram:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* ── Fullscreen Diagram Modal (ported from blog/src/styles/global.css;
+   design tokens are identical between both sites) ─────────────────────────── */
+.diagram-modal {
+  position: fixed;
+  inset: 0;
+  /* Above Starlight's fixed layers (skiplink 20, navbar 10, menu 5) and the
+     consent / cross-site banners (1000). */
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 19, 43, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.diagram-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.diagram-modal-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 96vw;
+  height: 94vh;
+  max-width: 1700px;
+  background: var(--color-primary);
+  border: 1px solid var(--vp-border);
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+  transform: scale(0.97);
+  transition: transform 0.25s ease;
+}
+
+.diagram-modal.is-open .diagram-modal-dialog {
+  transform: scale(1);
+}
+
+.diagram-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--color-primary);
+  border-bottom: 1px solid var(--vp-border);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.diagram-modal-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diagram-modal-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.diagram-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  min-width: 24px;
+  height: 24px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vp-text-muted);
+  background: transparent;
+  border: 1px solid var(--vp-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.diagram-icon-btn:hover {
+  color: var(--color-amber);
+  border-color: var(--color-amber);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.diagram-icon-btn:focus-visible {
+  outline: 2px solid var(--color-tertiary);
+  outline-offset: 1px;
+}
+
+.diagram-modal-scale-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-amber);
+  padding: 2px 6px;
+  min-width: 44px;
+  text-align: center;
+}
+
+.diagram-modal-viewport {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #131c38 0%, #0b132b 100%);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.diagram-modal-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.diagram-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.diagram-modal-content svg {
+  display: block;
+  max-width: none !important;
+  max-height: none !important;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.4));
+}
+
+.diagram-modal-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--color-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diagram-modal-hints {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--vp-text-muted);
+  background: rgba(11, 19, 43, 0.7);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  pointer-events: none;
+}
+
 
 

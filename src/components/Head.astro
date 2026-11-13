@@ -46,6 +46,14 @@ const jsonLd: Record<string, unknown>[] = [
 
 const breadcrumb = buildBreadcrumb(pathname, pageTitle);
 if (breadcrumb) jsonLd.push(breadcrumb);
+
+// Detect whether the page body contains diagram fences so the (heavier)
+// diagram viewer script is only bundled into pages that need it.
+const bodySource: string = starlightRoute.entry.body ?? "";
+const hasDiagrams =
+  /^```(mermaid|c4)\b/m.test(bodySource) ||
+  /^```(text|txt|plain|plaintext)?\r?\n[\s\S]*?^C4(Context|Container|Component|Dynamic|Deployment)\b/m.test(bodySource) ||
+  /^```\r?\n[\s\S]*?^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram)\b/m.test(bodySource);
 ---
 
 {/* Starlight's own head: title, canonical, base og:title/description/url/type, favicons */}
@@ -72,6 +80,16 @@ if (breadcrumb) jsonLd.push(breadcrumb);
   type="application/ld+json"
   set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': jsonLd })}
 />
+
+{/* Diagram viewer — only pages whose markdown source contains diagram fences
+    carry the bundled script (src/scripts/diagram-viewer.js). The "Show
+    Diagram" button is injected below Expressive Code's figure frame and opens
+    the fullscreen modal viewer. */}
+{hasDiagrams && (
+  <script>
+    import '../scripts/diagram-viewer.js';
+  </script>
+)}
 
 {gaId && (
   <Fragment>

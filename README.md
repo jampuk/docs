@@ -171,6 +171,7 @@ Page quality bar:
 | `src/content.config.ts` | Starlight `docsLoader` + `docsSchema` |
 | `src/markdown/external-links.mjs` | Rehype plugin — external links open in a new tab (`*.jampuk.com` whitelisted to same tab) and `## Further Readings` sections are tagged for CSS |
 | `src/styles/custom.css` | VitePress-emulating Starlight overrides (dark only) |
+| `src/scripts/diagram-viewer.js` | Diagram viewer — injects a "Show Diagram" button below Expressive Code frames for Mermaid/C4 blocks and opens a fullscreen pan/zoom modal (Mermaid 11 loaded lazily from CDN). Bundled by `src/components/Head.astro` only on pages containing diagram fences |
 
 ## Development conventions
 
@@ -215,6 +216,18 @@ Guide pages render a share row between the article body and the footer (social, 
 - Share links always use the canonical `PUBLIC_DOCS_SITE` URL, so preview builds still share production links.
 - Share markup is `data-pagefind-ignore`, keeping it out of search results.
 - Styling lives in the `Share block` section of `src/styles/custom.css`; reuse existing tokens and do not add new hardcoded colors.
+
+## Diagram Viewer
+
+Mermaid and C4 code fences render as raw source in Expressive Code frames, with a **Show Diagram** button below the frame that opens a fullscreen modal viewer rendering the diagram as SVG.
+
+- **Detection is client-side** (`src/scripts/diagram-viewer.js`): fences tagged `mermaid` or `c4` always qualify; unlabeled `text` fences qualify when the raw code starts with a Mermaid/C4 keyword (`flowchart`, `sequenceDiagram`, `C4Context`, …). The modal lazily loads Mermaid 11 from the jsdelivr CDN on first open.
+- **Modal interactions**: pan by drag (pointer/touch), wheel and pinch-to-zoom, toolbar with Fit / 1:1 / +/- zoom, and Esc or backdrop click to close. CSS lives in the `.diagram-modal*` section of `src/styles/custom.css` (z-index above the consent banner).
+- **Per-page script gating**: `src/components/Head.astro` scans the page's markdown source (`starlightRoute.entry.body`) for diagram fence patterns and only bundles the viewer script on matching pages.
+- **Expressive Code DOM caveats** (why the implementation looks the way it does):
+  - EC keeps `<figcaption>` `display: none` when a block has no title, so the button must be a sibling **after** the `<figure class="frame">` (`.ec-btn-diagram--below`), not inside the caption — and needs `position: relative; z-index: 1` because the positioned figure otherwise paints over static siblings.
+  - EC strips `\n` from `textContent` (each source line is a separate element), so `getRawCode()` reconstructs newlines from `.line` elements / `<br>` tags — Mermaid fails with `Expecting 'NEWLINE'` on single-line input.
+  - The button click calls `e.stopPropagation()` to keep it out of EC's delegated click handling, which throws on unknown toolbar buttons.
 
 ## Deployment
 
